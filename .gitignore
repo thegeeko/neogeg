@@ -58,4 +58,3 @@ cmake-build-debug
 .idea
 
 *.ig
-lib/

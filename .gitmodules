@@ -1,6 +1,9 @@
 [submodule "engine/lib/spdlog"]
-	path = geg/vendor/spdlog
-	url = https://www.github.com/gabime/spdlog.git
+	path = engine/lib/spdlog
+	url = https://github.com/gabime/spdlog.git
 [submodule "engine/lib/glfw"]
-	path = geg/vendor/glfw
-	url = https://www.github.com/glfw/glfw.git
+	path = engine/lib/glfw
+	url = https://github.com/glfw/glfw.git
+[submodule "engine/lib/vma"]
+	path = engine/lib/vma
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
