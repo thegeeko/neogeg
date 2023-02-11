@@ -18,12 +18,8 @@ namespace geg {
 
 		void poll_events() const;
 		GLFWwindow *raw_pointer;
-		uint32_t width() const { return m_data.width; }
-		uint32_t height() const { return m_data.height; }
 
 		struct WindowData {
-			uint32_t width;
-			uint32_t height;
 			EventCB events_cb;
 		};
 

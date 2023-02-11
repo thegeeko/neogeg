@@ -69,8 +69,6 @@ namespace geg::vulkan {
 			new_extent = surface_capabilities.currentExtent;
 		}
 
-		if (new_extent.width == m_extent.width && new_extent.height == m_extent.height) { return; }
-
 		m_extent = new_extent;
 		auto new_swapchain = m_device->logical_device.createSwapchainKHR({
 				.surface = m_device->surface,
@@ -80,7 +78,7 @@ namespace geg::vulkan {
 				.imageExtent = m_extent,
 				.imageArrayLayers = 1,
 				.imageUsage = vk::ImageUsageFlagBits::eColorAttachment,
-        .imageSharingMode = vk::SharingMode::eExclusive,
+				.imageSharingMode = vk::SharingMode::eExclusive,
 				.preTransform = m_transform,
 				.compositeAlpha = m_composite_alpha,
 				.presentMode = m_present_mode,
@@ -91,7 +89,13 @@ namespace geg::vulkan {
 		m_device->logical_device.destroySwapchainKHR(m_swapchain);
 		m_swapchain = new_swapchain;
 
+		// clear old image views
+		for (auto& image : m_images) {
+			m_device->logical_device.destroyImageView(image.view);
+		}
+
 		std::vector<vk::Image> images = m_device->logical_device.getSwapchainImagesKHR(m_swapchain);
+		int i = 0;
 		for (auto& image : images) {
 			vk::ImageView image_view = m_device->logical_device.createImageView({
 					.image = image,
@@ -114,7 +118,9 @@ namespace geg::vulkan {
 							},
 			});
 
-			m_images.push_back({image, image_view});
+			m_images[i].image = image;
+			m_images[i].view = image_view;
+			i++;
 		}
 
 		GEG_CORE_INFO("created swapchain with w: {}, h: {}", m_extent.width, m_extent.height);
@@ -126,6 +132,10 @@ namespace geg::vulkan {
 
 	Swapchain::~Swapchain() {
 		GEG_CORE_WARN("destroying swapchain");
+		// clear old image views
+		for (auto& image : m_images) {
+			m_device->logical_device.destroyImageView(image.view);
+		}
 		m_device->logical_device.destroySwapchainKHR(m_swapchain);
 	}
 }		 // namespace geg::vulkan

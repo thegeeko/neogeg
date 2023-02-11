@@ -45,8 +45,7 @@ namespace geg {
 
 		glfwSetWindowSizeCallback(raw_pointer, [](GLFWwindow *window, int width, int height) {
 			auto win_data = *(WindowData *)glfwGetWindowUserPointer(window);
-			win_data.width = width;
-			win_data.height = height;
+
 			WindowResizeEvent e(width, height);
 			win_data.events_cb(e);
 		});

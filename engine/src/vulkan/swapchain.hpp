@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include "core/window.hpp"
 #include "device.hpp"
 #include "geg-vulkan.hpp"
@@ -14,7 +15,15 @@ namespace geg::vulkan {
 		Swapchain(Swapchain &&) = delete;
 		Swapchain &operator=(Swapchain &&) = delete;
 
-    void recreate();
+		void recreate();
+
+		const auto format() const { return m_surface_format.format; }
+		const auto images() const { return m_images; }
+		const auto extent() const { return m_extent; }
+
+		bool should_recreate(std::pair<uint32_t, uint32_t> curr_dimintaions) const {
+			return curr_dimintaions.first != m_extent.width || curr_dimintaions.second != m_extent.height;
+		};
 
 	private:
 		void create_swapchain();
@@ -22,11 +31,11 @@ namespace geg::vulkan {
 		std::shared_ptr<Window> m_window;
 		std::shared_ptr<Device> m_device;
 
+		vk::CompositeAlphaFlagBitsKHR m_composite_alpha;
+		vk::SurfaceTransformFlagBitsKHR m_transform;
 		vk::SurfaceFormatKHR m_surface_format;
 		vk::PresentModeKHR m_present_mode;
 		vk::Extent2D m_extent;
-		vk::SurfaceTransformFlagBitsKHR m_transform;
-		vk::CompositeAlphaFlagBitsKHR m_composite_alpha;
 
 		vk::SwapchainKHR m_swapchain = nullptr;
 		std::vector<Image> m_images;

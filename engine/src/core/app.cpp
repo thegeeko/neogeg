@@ -37,6 +37,7 @@ namespace geg {
 
 	void App::event_handler(Event &e) {
 		Dispatcher::dispatch<WindowCloseEvent>(e, GEG_BIND_CB(deinit));
+    Dispatcher::dispatch<WindowResizeEvent>(e, GEG_BIND_CB(m_renderer->resize));
 
 		/* GEG_CORE_TRACE(e.to_string()); */
 	}

@@ -10,7 +10,7 @@ endif()
 # ================================
 
 # =============== deps ==============
-find_package(Vulkan REQUIRED)
+find_package(Vulkan REQUIRED shaderc_combined)
 
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -20,10 +20,8 @@ add_subdirectory("lib/glfw")
 
 
 add_subdirectory("lib/spdlog")
-
-set(VMA_DEBUG_ALWAYS_DEDICATED_MEMORY ON CACHE BOOL "" FORCE)
-set(VMA_DEBUG_INITIALIZE_ALLOCATIONS OFF CACHE BOOL "" FORCE)
-add_subdirectory("lib/vma")
+add_subdirectory("lib/glm")
+add_subdirectory("lib/vma-hpp")
 
 # ===================================
 
@@ -39,9 +37,14 @@ add_library(geg STATIC ${GEG_SRC})
 
 # link dependencies
 target_link_libraries(geg PUBLIC Vulkan::Vulkan)
+target_link_libraries(geg PUBLIC Vulkan::shaderc_combined)
 target_link_libraries(geg PUBLIC spdlog::spdlog)
 target_link_libraries(geg PUBLIC glfw)
+target_link_libraries(geg PUBLIC glm)
+target_link_libraries(geg PUBLIC VulkanMemoryAllocator)
 
+# vma-hpp
+target_include_directories(geg PUBLIC "lib/vma-hpp/include")
 
 # pre compiled header
 target_precompile_headers(geg PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/pch.hpp")

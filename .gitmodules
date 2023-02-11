@@ -7,3 +7,9 @@
 [submodule "engine/lib/vma"]
 	path = engine/lib/vma
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+[submodule "engine/lib/glm"]
+	path = engine/lib/glm
+	url = https://github.com/g-truc/glm.git
+[submodule "engine/lib/vma-hpp"]
+	path = engine/lib/vma-hpp
+	url = https://github.com/YaaZ/VulkanMemoryAllocator-Hpp.git
