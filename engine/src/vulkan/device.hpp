@@ -2,8 +2,8 @@
 
 #include <memory>
 
-#include "core/window.hpp"
 #include "geg-vulkan.hpp"
+#include "core/window.hpp"
 
 namespace geg::vulkan {
 	class Device {
@@ -18,14 +18,16 @@ namespace geg::vulkan {
 		void init();
 		void destroy();
 
+		vk::Device logical_device;
+		vk::Instance instance;
+		vk::PhysicalDevice physical_device;
+		vk::SurfaceKHR surface;
+
 	private:
 		bool m_debug_messenger_created = false;
 		std::shared_ptr<Window> m_window;
-		vk::Instance m_instance;
 		vk::DebugUtilsMessengerEXT m_debug_messenger;
-		vk::PhysicalDevice m_physical_device;
-		std::optional<uint32_t> m_graphics_queue_family_index;
-    vk::Queue m_graphics_queue;
-		vk::Device m_device;
+		std::optional<uint32_t> m_queue_family_index;
+		vk::Queue m_graphics_queue;
 	};
 }		 // namespace geg::vulkan

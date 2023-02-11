@@ -7,7 +7,7 @@ LayerStack::~LayerStack() {
     delete layer;
   }
 
-  GEG_CORE_INFO("Layer stack cleared");
+  GEG_CORE_WARN("Layer stack cleared");
 }
 
 void LayerStack::pushLayer(Layer *layer) {

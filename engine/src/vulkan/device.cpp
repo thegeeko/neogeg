@@ -121,7 +121,7 @@ namespace geg::vulkan {
 
 		if (!validation_layers_found) GEG_CORE_WARN("Validation layers not found");
 
-		m_instance = vk::createInstance({
+		instance = vk::createInstance({
 				.pApplicationInfo = &applicationInfo,
 				.enabledLayerCount = static_cast<uint32_t>(validation_layers_found ? validation_layers.size() : 0),
 				.ppEnabledLayerNames = validation_layers_found ? validation_layers.data() : nullptr,
@@ -131,15 +131,15 @@ namespace geg::vulkan {
 
 		if (found_all_opt_exts) {
 			// check if debug utils is supported
-			pfnVkCreateDebugUtilsMessengerEXT = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
-					m_instance.getProcAddr("vkCreateDebugUtilsMessengerEXT"));
+			pfnVkCreateDebugUtilsMessengerEXT =
+					reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(instance.getProcAddr("vkCreateDebugUtilsMessengerEXT"));
 
 			GEG_CORE_ASSERT(
 					pfnVkCreateDebugUtilsMessengerEXT,
 					"GetInstanceProcAddr: Unable to find pfnVkCreateDebugUtilsMessengerEXT function.");
 
 			pfnVkDestroyDebugUtilsMessengerEXT = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
-					m_instance.getProcAddr("vkDestroyDebugUtilsMessengerEXT"));
+					instance.getProcAddr("vkDestroyDebugUtilsMessengerEXT"));
 
 			GEG_CORE_ASSERT(
 					pfnVkDestroyDebugUtilsMessengerEXT,
@@ -151,7 +151,7 @@ namespace geg::vulkan {
 					vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral | vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance |
 					vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation);
 
-			m_debug_messenger = m_instance.createDebugUtilsMessengerEXT({
+			m_debug_messenger = instance.createDebugUtilsMessengerEXT({
 					.messageSeverity = severityFlags,
 					.messageType = messageTypeFlags,
 					.pfnUserCallback = &debugMessageFunc,
@@ -161,8 +161,13 @@ namespace geg::vulkan {
 			GEG_CORE_INFO("Debug Messenger created");
 		}
 
+		// create surface
+		VkSurfaceKHR tmp_surface;
+		glfwCreateWindowSurface(instance, m_window->raw_pointer, nullptr, &tmp_surface);
+		surface = tmp_surface;
+
 		// selecting a phiysical device
-		auto gpus = m_instance.enumeratePhysicalDevices();
+		auto gpus = instance.enumeratePhysicalDevices();
 		GEG_CORE_ASSERT(!gpus.empty(), "No GPU with vulkan support found");
 
 		auto found_device = std::find_if(gpus.begin(), gpus.end(), [](const vk::PhysicalDevice &gpu) {
@@ -175,45 +180,50 @@ namespace geg::vulkan {
 		}
 
 		GEG_CORE_ASSERT(found_device != gpus.end(), "No suitable GPU found");
-		m_physical_device = *found_device;
-		GEG_CORE_INFO("Using GPU: {}", m_physical_device.getProperties().deviceName);
+		physical_device = *found_device;
+		GEG_CORE_INFO("Using GPU: {}", physical_device.getProperties().deviceName);
 
 		// selecting a queue family
-		auto queue_families = m_physical_device.getQueueFamilyProperties();
+		auto queue_families = physical_device.getQueueFamilyProperties();
 		GEG_CORE_ASSERT(!queue_families.empty(), "No queue families found");
 
 		// assuming that the qraphics queue family supports presentation
 		uint32_t i = 0;
 		for (auto &queue_family : queue_families) {
-			if (queue_family.queueFlags & vk::QueueFlagBits::eGraphics) {
-				m_graphics_queue_family_index = i;
+			if ((queue_family.queueFlags & vk::QueueFlagBits::eGraphics) &&
+					physical_device.getSurfaceSupportKHR(i, surface)) {
+				m_queue_family_index = i;
 				break;
 			}
 			i++;
 		}
-		GEG_CORE_ASSERT(m_graphics_queue_family_index.has_value(), "No graphics queue family found");
+		GEG_CORE_ASSERT(m_queue_family_index.has_value(), "No graphics queue family found");
 
 		// creating a logical device
 		float queue_priority = 1.0f;
 		vk::DeviceQueueCreateInfo device_queue_create_info{
-				.queueFamilyIndex = m_graphics_queue_family_index.value(),
+				.queueFamilyIndex = m_queue_family_index.value(),
 				.queueCount = 1,
 				.pQueuePriorities = &queue_priority,
 		};
 
-		m_device = m_physical_device.createDevice({
+		std::array<const char *, 1> device_extensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+		logical_device = physical_device.createDevice({
 				.queueCreateInfoCount = 1,
 				.pQueueCreateInfos = &device_queue_create_info,
+				.enabledExtensionCount = static_cast<uint32_t>(1),
+				.ppEnabledExtensionNames = device_extensions.data(),
 		});
 
-		m_graphics_queue = m_device.getQueue(m_graphics_queue_family_index.value(), 0);
+		m_graphics_queue = logical_device.getQueue(m_queue_family_index.value(), 0);
 	};
 
 	Device::~Device() {
-		GEG_CORE_INFO("destroying vulkan device");
-		m_device.destroy();
-		if (m_debug_messenger_created) m_instance.destroyDebugUtilsMessengerEXT(m_debug_messenger);
-		m_instance.destroy();
+		GEG_CORE_WARN("destroying vulkan device");
+		logical_device.destroy();
+		instance.destroySurfaceKHR(surface);
+		if (m_debug_messenger_created) instance.destroyDebugUtilsMessengerEXT(m_debug_messenger);
+		instance.destroy();
 	};
 
 	void Device::init(){};

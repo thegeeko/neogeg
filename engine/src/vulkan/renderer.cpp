@@ -1,24 +1,28 @@
-#include <vulkan/vulkan.hpp>
-
 #include "vulkan/renderer.hpp"
-#include "vulkan/device.hpp"
 
 #define VMA_IMPLEMENTATION
 #include "vma/vk_mem_alloc.h"
+#include "vulkan/device.hpp"
 
 namespace geg {
-VulkanRenderer::VulkanRenderer(std::shared_ptr<Window> window) {
-  m_window = window;
+	VulkanRenderer::VulkanRenderer(std::shared_ptr<Window> window) {
+		m_window = window;
 
-  init();
-}
+		init();
+	}
 
-void VulkanRenderer::init() {
-  GEG_CORE_INFO("init vulkan");
-  vulkan::Device device(m_window);
-}
+	void VulkanRenderer::init() {
+		GEG_CORE_INFO("init vulkan");
 
-void VulkanRenderer::render(){
-  
-};
-} // namespace geg
+		m_device = std::make_shared<vulkan::Device>(m_window);
+		m_swapchain = std::make_shared<vulkan::Swapchain>(m_window, m_device);
+	}
+
+	VulkanRenderer::~VulkanRenderer() {
+		GEG_CORE_WARN("destroying vulkan");
+	}
+
+	void VulkanRenderer::render(){
+    m_swapchain->recreate();
+	};
+}		 // namespace geg

@@ -1,30 +1,35 @@
 #pragma once
+
 #include "GLFW/glfw3.h"
 #include "events/base-event.hpp"
-#include <cstdint>
-#include <functional>
-#include <memory>
-#include <string>
 
 namespace geg {
-using EventCB = std::function<void(Event &)>;
-struct AppInfo;
+	using EventCB = std::function<void(Event &)>;
+	struct AppInfo;
 
-class Window {
-public:
-  Window(const AppInfo &info, const EventCB &event_cb);
-  Window(const Window &) = delete;
-  Window(Window &&) = delete;
-  Window &operator=(const Window &) = delete;
-  Window &operator=(Window &&) = delete;
-  ~Window();
+	class Window {
+	public:
+		Window(const AppInfo &info, const EventCB &event_cb);
+		Window(const Window &) = delete;
+		Window(Window &&) = delete;
+		Window &operator=(const Window &) = delete;
+		Window &operator=(Window &&) = delete;
+		~Window();
 
-  void poll_events() const;
-  GLFWwindow *raw_pointer;
+		void poll_events() const;
+		GLFWwindow *raw_pointer;
+		uint32_t width() const { return m_data.width; }
+		uint32_t height() const { return m_data.height; }
 
-private:
-  void register_cb();
-  EventCB m_events_cb;
-};
+		struct WindowData {
+			uint32_t width;
+			uint32_t height;
+			EventCB events_cb;
+		};
 
-} // namespace geg
+	private:
+		void register_cb();
+		WindowData m_data;
+	};
+
+}		 // namespace geg

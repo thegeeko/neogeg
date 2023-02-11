@@ -1,5 +1,5 @@
 # ========= setup ================
-set(GCC_COVERAGE_COMPILE_FLAGS "-fPIC")
+set(GCC_COVERAGE_COMPILE_FLAGS "")
 set(MSVC_COVERAGE_COMPILE_FLAGS "")
 
 if(NOT MSVC)
@@ -17,6 +17,7 @@ set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(GLFW_VULKAN_STATIC ON CACHE BOOL "" FORCE)
 add_subdirectory("lib/glfw")
+
 
 add_subdirectory("lib/spdlog")
 
@@ -37,9 +38,10 @@ file(
 add_library(geg STATIC ${GEG_SRC})
 
 # link dependencies
-target_link_libraries(geg PUBLIC glfw)
 target_link_libraries(geg PUBLIC Vulkan::Vulkan)
 target_link_libraries(geg PUBLIC spdlog::spdlog)
+target_link_libraries(geg PUBLIC glfw)
+
 
 # pre compiled header
 target_precompile_headers(geg PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/pch.hpp")
