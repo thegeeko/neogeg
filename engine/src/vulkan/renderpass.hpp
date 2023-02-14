@@ -9,8 +9,8 @@ namespace geg::vulkan {
 	public:
 		Renderpass(std::shared_ptr<Device> device, std::shared_ptr<Swapchain> swapchain);
 		Renderpass(const Renderpass &) = delete;
-		Renderpass &operator=(const Renderpass &) = delete;
 		Renderpass(Renderpass &&) = delete;
+		Renderpass &operator=(const Renderpass &) = delete;
 		Renderpass &operator=(Renderpass &&) = delete;
 		~Renderpass();
 
