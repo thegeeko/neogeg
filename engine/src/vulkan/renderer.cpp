@@ -1,9 +1,8 @@
 #include "vulkan/renderer.hpp"
-#include <cstdint>
-#include <utility>
 
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.hpp"
+
 #include "vulkan/device.hpp"
 
 namespace geg {
@@ -13,17 +12,19 @@ namespace geg {
 		m_window = window;
 
 		m_device = std::make_shared<vulkan::Device>(m_window);
-		vma::AllocatorCreateInfo allocator_info = {
+		m_allocator = vma::createAllocator({
 				.physicalDevice = m_device->physical_device,
 				.device = m_device->logical_device,
 				.instance = m_device->instance,
 				.vulkanApiVersion = VK_API_VERSION_1_2,
-		};
-
-		m_allocator = vma::createAllocator(allocator_info);
-
+		});
 		m_swapchain = std::make_shared<vulkan::Swapchain>(m_window, m_device);
 		m_renderpass = std::make_shared<vulkan::Renderpass>(m_device, m_swapchain);
+
+    GEG_CORE_INFO(fs::current_path().string());
+		tmp_shader =
+				std::make_shared<vulkan::Shader>(m_device, fs::path("./assets/shaders/flat.glsl"), "flat");
+		tmp_pipeline = std::make_shared<vulkan::GraphicsPipeline>(m_device, m_renderpass, *tmp_shader.get());
 
 		create_framebuffers_and_depth();
 	}

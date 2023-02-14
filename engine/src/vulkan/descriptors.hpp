@@ -73,7 +73,7 @@ namespace geg::vulkan {
 				VkDescriptorType type,
 				VkShaderStageFlags stageFlags);
 
-    // for building a descriptor set layout only
+		// for building a descriptor set layout only
 		DescriptorBuilder& bind_buffer_layout(
 				uint32_t binding, VkDescriptorType type, VkShaderStageFlags stageFlags);
 

@@ -5,13 +5,16 @@
 #include "vulkan/swapchain.hpp"
 #include "vk_mem_alloc.hpp"
 
+#include "shader.hpp"
+#include "vulkan/pipeline.hpp"
+
 namespace geg {
 	class VulkanRenderer: public Renderer {
 	public:
 		VulkanRenderer(std::shared_ptr<Window> window);
 		~VulkanRenderer() override;
 		void render() override;
-    bool resize(WindowResizeEvent dim) override;
+		bool resize(WindowResizeEvent dim) override;
 
 	private:
 		void init();
@@ -23,12 +26,15 @@ namespace geg {
 		std::shared_ptr<vulkan::Device> m_device;
 		std::shared_ptr<vulkan::Swapchain> m_swapchain;
 		std::shared_ptr<vulkan::Renderpass> m_renderpass;
+		vma::Allocator m_allocator;
 		std::vector<vk::Framebuffer> m_framebuffers;
 
-		vma::Allocator m_allocator;
 		std::pair<vma::UniqueImage, vma::UniqueAllocation> m_depth_image;
 		vk::UniqueImageView m_depth_image_view;
 
-    std::pair<uint32_t, uint32_t> m_current_dimintaions;
+		std::pair<uint32_t, uint32_t> m_current_dimintaions;
+
+    std::shared_ptr<vulkan::Shader> tmp_shader;
+    std::shared_ptr<vulkan::GraphicsPipeline> tmp_pipeline;
 	};
 }		 // namespace geg
