@@ -50,6 +50,15 @@ target_include_directories(geg PUBLIC "lib/vma-hpp/include")
 target_precompile_headers(geg PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/pch.hpp")
 # ==================================
 
+# ============== copy standard assets =============
+add_custom_command(
+  TARGET geg POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_directory
+  "${CMAKE_CURRENT_SOURCE_DIR}/default-assets"
+  "${CMAKE_CURRENT_BINARY_DIR}/../assets"
+)
+# ================================================
+
 # ============== include =============
 target_include_directories(geg PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
 #=====================================
