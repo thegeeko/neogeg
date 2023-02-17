@@ -4,7 +4,7 @@
 namespace geg::vulkan {
 	Shader::Shader(
 			std::shared_ptr<Device> device, const fs::path& shader_path, const std::string& shader_name) {
-		m_shader_path = shader_path;
+		m_shader_path = shader_path.string();
 		m_shader_name = shader_name;
 		m_glsl_shader_src = read_file(m_shader_path);
 		m_device = device;

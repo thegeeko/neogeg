@@ -99,18 +99,18 @@ namespace geg::vulkan {
 				.compositeAlpha = m_composite_alpha,
 				.presentMode = m_present_mode,
 				.clipped = VK_TRUE,
-				.oldSwapchain = m_swapchain,
+				.oldSwapchain = swapchain,
 		});
 
-		m_device->logical_device.destroySwapchainKHR(m_swapchain);
-		m_swapchain = new_swapchain;
+		m_device->logical_device.destroySwapchainKHR(swapchain);
+		swapchain = new_swapchain;
 
 		// clear old image views
 		for (auto& image : m_images) {
 			m_device->logical_device.destroyImageView(image.view);
 		}
 
-		std::vector<vk::Image> images = m_device->logical_device.getSwapchainImagesKHR(m_swapchain);
+		std::vector<vk::Image> images = m_device->logical_device.getSwapchainImagesKHR(swapchain);
 		int i = 0;
 		for (auto& image : images) {
 			vk::ImageView image_view = m_device->logical_device.createImageView({
@@ -152,6 +152,6 @@ namespace geg::vulkan {
 		for (auto& image : m_images) {
 			m_device->logical_device.destroyImageView(image.view);
 		}
-		m_device->logical_device.destroySwapchainKHR(m_swapchain);
+		m_device->logical_device.destroySwapchainKHR(swapchain);
 	}
 }		 // namespace geg::vulkan

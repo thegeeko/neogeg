@@ -25,6 +25,7 @@ namespace geg::vulkan {
 			return curr_dimintaions.first != m_extent.width || curr_dimintaions.second != m_extent.height;
 		};
 
+		vk::SwapchainKHR swapchain = nullptr;
 	private:
 		void create_swapchain();
 
@@ -37,7 +38,6 @@ namespace geg::vulkan {
 		vk::PresentModeKHR m_present_mode;
 		vk::Extent2D m_extent;
 
-		vk::SwapchainKHR m_swapchain = nullptr;
 		std::vector<Image> m_images;
 	};
 

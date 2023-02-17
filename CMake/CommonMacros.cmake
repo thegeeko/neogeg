@@ -1,0 +1,8 @@
+macro(SETUP_GROUPS src_files)
+  foreach(FILE ${src_files})
+    cmake_path(GET FILE PARENT_PATH PARENT_DIR)
+    set(GROUP "${PARENT_DIR}")
+    string(REPLACE "/" "\\" GROUP "${GROUP}")
+    source_group("${GROUP}" FILES "${FILE}")
+  endforeach() 
+endmacro()

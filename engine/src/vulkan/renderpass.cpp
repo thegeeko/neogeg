@@ -18,6 +18,7 @@ namespace geg::vulkan {
 				.initialLayout = vk::ImageLayout::eUndefined,
 				.finalLayout = vk::ImageLayout::ePresentSrcKHR,
 		};
+
 		attachment_descriptions[1] = vk::AttachmentDescription{
 				.flags = vk::AttachmentDescriptionFlags(),
 				.format = m_depth_format,
@@ -34,6 +35,7 @@ namespace geg::vulkan {
 				.attachment = 0,
 				.layout = vk::ImageLayout::eColorAttachmentOptimal,
 		};
+
 		vk::AttachmentReference depth_reference{
 				.attachment = 1,
 				.layout = vk::ImageLayout::eDepthStencilAttachmentOptimal,
@@ -42,8 +44,24 @@ namespace geg::vulkan {
 		vk::SubpassDescription subpass{
 				.flags = vk::SubpassDescriptionFlags(),
 				.pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
+				.colorAttachmentCount = 1,
 				.pColorAttachments = &color_reference,
 				.pDepthStencilAttachment = &depth_reference,
+		};
+
+		vk::SubpassDependency dependacy{
+				.srcSubpass = VK_SUBPASS_EXTERNAL,
+				.dstSubpass = 0,
+				.srcStageMask = vk::PipelineStageFlags(
+						vk::PipelineStageFlagBits::eColorAttachmentOutput |
+						vk::PipelineStageFlagBits::eEarlyFragmentTests),
+				.dstStageMask = vk::PipelineStageFlags(
+						vk::PipelineStageFlagBits::eColorAttachmentOutput |
+						vk::PipelineStageFlagBits::eEarlyFragmentTests),
+				.srcAccessMask = vk::AccessFlags(0),
+				.dstAccessMask = vk::AccessFlags(
+						vk::AccessFlagBits::eColorAttachmentWrite |
+						vk::AccessFlagBits::eDepthStencilAttachmentWrite),
 		};
 
 		render_pass = device->logical_device.createRenderPass({
@@ -52,6 +70,8 @@ namespace geg::vulkan {
 				.pAttachments = attachment_descriptions.data(),
 				.subpassCount = 1,
 				.pSubpasses = &subpass,
+				.dependencyCount = 1,
+				.pDependencies = &dependacy,
 		});
 
 		GEG_CORE_INFO("Renderpass created");

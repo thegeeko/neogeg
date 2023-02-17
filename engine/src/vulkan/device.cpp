@@ -192,17 +192,17 @@ namespace geg::vulkan {
 		for (auto &queue_family : queue_families) {
 			if ((queue_family.queueFlags & vk::QueueFlagBits::eGraphics) &&
 					physical_device.getSurfaceSupportKHR(i, surface)) {
-				m_queue_family_index = i;
+				queue_family_index = i;
 				break;
 			}
 			i++;
 		}
-		GEG_CORE_ASSERT(m_queue_family_index.has_value(), "No graphics queue family found");
+		GEG_CORE_ASSERT(queue_family_index.has_value(), "No graphics queue family found");
 
 		// creating a logical device
 		float queue_priority = 1.0f;
 		vk::DeviceQueueCreateInfo device_queue_create_info{
-				.queueFamilyIndex = m_queue_family_index.value(),
+				.queueFamilyIndex = queue_family_index.value(),
 				.queueCount = 1,
 				.pQueuePriorities = &queue_priority,
 		};
@@ -215,7 +215,7 @@ namespace geg::vulkan {
 				.ppEnabledExtensionNames = device_extensions.data(),
 		});
 
-		m_graphics_queue = logical_device.getQueue(m_queue_family_index.value(), 0);
+		graphics_queue = logical_device.getQueue(queue_family_index.value(), 0);
 	};
 
 	Device::~Device() {

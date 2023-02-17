@@ -37,7 +37,7 @@ namespace geg::vulkan {
 				.depthClampEnable = VK_FALSE,
 				.rasterizerDiscardEnable = VK_FALSE,
 				.polygonMode = vk::PolygonMode::eFill,
-				.cullMode = vk::CullModeFlagBits::eBack,
+				.cullMode = vk::CullModeFlagBits::eNone,
 				.frontFace = vk::FrontFace::eClockwise,
 				.depthBiasEnable = VK_FALSE,
 				.lineWidth = 1.0f,
@@ -46,6 +46,7 @@ namespace geg::vulkan {
 		auto multisampling = vk::PipelineMultisampleStateCreateInfo{
 				.rasterizationSamples = vk::SampleCountFlagBits::e1,
 				.sampleShadingEnable = VK_FALSE,
+				.minSampleShading = 1.0f,
 		};
 
 		auto depth_stencil = vk::PipelineDepthStencilStateCreateInfo{
@@ -68,7 +69,7 @@ namespace geg::vulkan {
 				.pAttachments = &color_blend_attachment,
 		};
 
-		pipeline_layout = m_device->logical_device.createPipelineLayout({});
+		pipeline_layout = m_device->logical_device.createPipelineLayout(vk::PipelineLayoutCreateInfo{});
 		auto result = m_device->logical_device.createGraphicsPipeline(
 				{},
 				{

@@ -22,12 +22,12 @@ namespace geg::vulkan {
 		vk::Instance instance;
 		vk::PhysicalDevice physical_device;
 		vk::SurfaceKHR surface;
+		std::optional<uint32_t> queue_family_index;
+		vk::Queue graphics_queue;
 
 	private:
 		bool m_debug_messenger_created = false;
 		std::shared_ptr<Window> m_window;
 		vk::DebugUtilsMessengerEXT m_debug_messenger;
-		std::optional<uint32_t> m_queue_family_index;
-		vk::Queue m_graphics_queue;
 	};
 }		 // namespace geg::vulkan

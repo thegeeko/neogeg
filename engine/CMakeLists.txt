@@ -31,9 +31,24 @@ file(
 	GLOB_RECURSE # recursive
 	GEG_SRC # variable to store the source files and headers
 	CONFIGURE_DEPENDS # make a dependency
-	"${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp" "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+  RELATIVE
+	"${CMAKE_CURRENT_SOURCE_DIR}"
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
 )
-add_library(geg STATIC ${GEG_SRC})
+
+file(
+	GLOB_RECURSE # recursive
+  GEG_HEADERS # variable to store the source files and headers
+	CONFIGURE_DEPENDS # make a dependency
+  RELATIVE
+	"${CMAKE_CURRENT_SOURCE_DIR}"
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp"
+)
+
+SETUP_GROUPS("${GEG_SRC}")
+SETUP_GROUPS("${GEG_HEADERS}")
+
+add_library(geg STATIC ${GEG_SRC} ${GEG_HEADERS})
 
 # link dependencies
 target_link_libraries(geg PUBLIC Vulkan::Vulkan)
@@ -55,7 +70,7 @@ add_custom_command(
   TARGET geg POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_directory
   "${CMAKE_CURRENT_SOURCE_DIR}/default-assets"
-  "${CMAKE_CURRENT_BINARY_DIR}/../assets"
+  "${CMAKE_BINARY_DIR}/assets"
 )
 # ================================================
 

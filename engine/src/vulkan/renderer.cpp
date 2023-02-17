@@ -10,6 +10,7 @@ namespace geg {
 		GEG_CORE_INFO("init vulkan");
 
 		m_window = window;
+		m_current_dimintaions = m_window->dimensions();
 
 		m_device = std::make_shared<vulkan::Device>(m_window);
 		m_allocator = vma::createAllocator({
@@ -21,15 +22,42 @@ namespace geg {
 		m_swapchain = std::make_shared<vulkan::Swapchain>(m_window, m_device);
 		m_renderpass = std::make_shared<vulkan::Renderpass>(m_device, m_swapchain);
 
-    GEG_CORE_INFO(fs::current_path().string());
+		GEG_CORE_INFO(fs::current_path().string());
 		tmp_shader =
 				std::make_shared<vulkan::Shader>(m_device, fs::path("./assets/shaders/flat.glsl"), "flat");
-		tmp_pipeline = std::make_shared<vulkan::GraphicsPipeline>(m_device, m_renderpass, *tmp_shader.get());
+		tmp_pipeline =
+				std::make_shared<vulkan::GraphicsPipeline>(m_device, m_renderpass, *tmp_shader.get());
 
 		create_framebuffers_and_depth();
+
+		m_present_semaphore = m_device->logical_device.createSemaphore(vk::SemaphoreCreateInfo{});
+		m_render_semaphore = m_device->logical_device.createSemaphore(vk::SemaphoreCreateInfo{});
+		m_render_fence = m_device->logical_device.createFence({
+				.flags = vk::FenceCreateFlagBits::eSignaled,
+		});
+
+		m_command_pool = m_device->logical_device.createCommandPool(vk::CommandPoolCreateInfo{
+				.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
+				.queueFamilyIndex = m_device->queue_family_index.value(),
+		});
+
+		m_command_buffer = m_device->logical_device
+													 .allocateCommandBuffers(vk::CommandBufferAllocateInfo{
+															 .commandPool = m_command_pool,
+															 .level = vk::CommandBufferLevel::ePrimary,
+															 .commandBufferCount = 1,
+													 })
+													 .front();
 	}
 
 	VulkanRenderer::~VulkanRenderer() {
+		m_device->logical_device.waitIdle();
+
+		m_device->logical_device.destroySemaphore(m_render_semaphore);
+		m_device->logical_device.destroySemaphore(m_present_semaphore);
+		m_device->logical_device.destroyFence(m_render_fence);
+		m_device->logical_device.destroyCommandPool(m_command_pool);
+
 		cleanup_framebuffers();
 		GEG_CORE_WARN("destroying vulkan");
 	}
@@ -68,15 +96,15 @@ namespace geg {
 						},
 		});
 
-		m_framebuffers.resize(m_swapchain->images().size());
+		m_swapchain_framebuffers.resize(m_swapchain->images().size());
 
 		int i = 0;
 		for (auto& img : m_swapchain->images()) {
 			std::array<vk::ImageView, 2> attachments = {img.view, m_depth_image_view.get()};
 
-			m_framebuffers[i] = m_device->logical_device.createFramebuffer({
+			m_swapchain_framebuffers[i] = m_device->logical_device.createFramebuffer({
 					.renderPass = m_renderpass->render_pass,
-					.attachmentCount = 2,
+					.attachmentCount = static_cast<uint32_t>(attachments.size()),
 					.pAttachments = attachments.data(),
 					.width = m_swapchain->extent().width,
 					.height = m_swapchain->extent().height,
@@ -94,7 +122,7 @@ namespace geg {
 	}
 
 	void VulkanRenderer::cleanup_framebuffers() {
-		for (auto fb : m_framebuffers) {
+		for (auto fb : m_swapchain_framebuffers) {
 			m_device->logical_device.destroyFramebuffer(fb);
 		}
 	}
@@ -102,10 +130,103 @@ namespace geg {
 	void VulkanRenderer::render() {
 		if (m_current_dimintaions.first == 0 || m_current_dimintaions.second == 0) { return; }
 
+		m_device->logical_device.waitForFences(m_render_fence, true, UINT64_MAX);
+		m_device->logical_device.resetFences(m_render_fence);
+
 		if (m_swapchain->should_recreate(m_current_dimintaions)) {
 			m_swapchain->recreate();
 			cleanup_framebuffers();
 			create_framebuffers_and_depth();
 		}
-	};
+
+		vk::ClearValue color_clear{
+				.color =
+						{
+								.float32 = {{1, 1, 1, 1}},
+						},
+		};
+
+		vk::ClearValue depth_clear{
+				.depthStencil =
+						{
+								.depth = 1,
+								.stencil = 0,
+						},
+		};
+
+		std::array<vk::ClearValue, 2> clear = {color_clear, depth_clear};
+
+		auto res = m_device->logical_device.acquireNextImageKHR(
+				m_swapchain->swapchain, UINT64_MAX, m_present_semaphore);
+
+		if (res.result != vk::Result::eSuccess) __debugbreak();
+
+		m_curr_index = res.value;
+
+		m_command_buffer.reset();
+
+		vk::Viewport vp{
+				.x = 0,
+				.y = 0,
+				.width = (float)m_swapchain->extent().width,
+				.height = (float)m_swapchain->extent().height,
+				.minDepth = 0,
+				.maxDepth = 1,
+		};
+
+		m_command_buffer.begin(vk::CommandBufferBeginInfo{});
+		m_command_buffer.beginRenderPass(
+				vk::RenderPassBeginInfo{
+						.renderPass = m_renderpass->render_pass,
+						.framebuffer = m_swapchain_framebuffers[m_curr_index],
+						.renderArea =
+								{
+										.offset = {0, 0},
+										.extent = m_swapchain->extent(),
+								},
+						.clearValueCount = static_cast<uint32_t>(clear.size()),
+						.pClearValues = clear.data(),
+				},
+				vk::SubpassContents::eInline);
+		m_command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, tmp_pipeline->pipeline);
+		m_command_buffer.setViewport(
+				0,
+				vk::Viewport{
+						.x = 0,
+						.y = 0,
+						.width = (float)m_swapchain->extent().width,
+						.height = (float)m_swapchain->extent().height,
+						.minDepth = 0,
+						.maxDepth = 1,
+				});
+		m_command_buffer.setScissor(
+				0,
+				vk::Rect2D{
+						.offset = 0,
+						.extent = m_swapchain->extent(),
+				});
+		m_command_buffer.draw(3, 1, 0, 0);
+		m_command_buffer.endRenderPass();
+		m_command_buffer.end();
+
+		vk::PipelineStageFlags pipeflg = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+		vk::SubmitInfo subinfo{
+				.waitSemaphoreCount = 1,
+				.pWaitSemaphores = &m_present_semaphore,
+				.pWaitDstStageMask = &pipeflg,
+				.commandBufferCount = 1,
+				.pCommandBuffers = &m_command_buffer,
+				.signalSemaphoreCount = 1,
+				.pSignalSemaphores = &m_render_semaphore,
+		};
+		m_device->graphics_queue.submit(subinfo, m_render_fence);
+
+		m_device->graphics_queue.presentKHR(vk::PresentInfoKHR{
+				.waitSemaphoreCount = 1,
+				.pWaitSemaphores = &m_render_semaphore,
+				.swapchainCount = 1,
+				.pSwapchains = &m_swapchain->swapchain,
+				.pImageIndices = &m_curr_index,
+		});
+	}
 }		 // namespace geg
