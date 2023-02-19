@@ -1,23 +1,24 @@
+#pragma once
+
 #include "events/events.hpp"
-#include "renderer/renderer.hpp"
 #include "vulkan/device.hpp"
 #include "vulkan/renderpass.hpp"
 #include "vulkan/swapchain.hpp"
+#include "vulkan/pipeline.hpp"
+#include "vulkan/debug-ui.hpp"
 #include "vk_mem_alloc.hpp"
 
 #include "shader.hpp"
-#include "vulkan/pipeline.hpp"
 
 namespace geg {
-	class VulkanRenderer: public Renderer {
+	class VulkanRenderer {
 	public:
 		VulkanRenderer(std::shared_ptr<Window> window);
-		~VulkanRenderer() override;
-		void render() override;
-		bool resize(WindowResizeEvent dim) override;
+		~VulkanRenderer();
+		void render();
+		bool resize(WindowResizeEvent dim);
 
 	private:
-		void init();
 		void create_framebuffers_and_depth();
 		void cleanup_framebuffers();
 
@@ -26,6 +27,7 @@ namespace geg {
 		std::shared_ptr<vulkan::Device> m_device;
 		std::shared_ptr<vulkan::Swapchain> m_swapchain;
 		std::shared_ptr<vulkan::Renderpass> m_renderpass;
+		std::shared_ptr<vulkan::DebugUi> m_debug_ui;
 		vma::Allocator m_allocator;
 		std::vector<vk::Framebuffer> m_swapchain_framebuffers;
 
@@ -37,7 +39,6 @@ namespace geg {
     std::shared_ptr<vulkan::Shader> tmp_shader;
     std::shared_ptr<vulkan::GraphicsPipeline> tmp_pipeline;
 
-		vk::CommandPool m_command_pool;
 		vk::CommandBuffer m_command_buffer;
 
 		uint32_t m_curr_index = -12;

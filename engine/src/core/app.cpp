@@ -8,7 +8,6 @@
 namespace geg {
 	App::App() {
 		Logger::init();
-
 		m_window = std::make_shared<Window>(AppInfo::g_default(), GEG_BIND_CB(event_handler));
 
 		init();
@@ -30,13 +29,13 @@ namespace geg {
 		m_renderer = std::make_unique<VulkanRenderer>(m_window);
 	}
 
-	bool App::deinit(const WindowCloseEvent &e) {
+	bool App::close(const WindowCloseEvent &e) {
 		is_running = false;
 		return true;
 	}
 
 	void App::event_handler(Event &e) {
-		Dispatcher::dispatch<WindowCloseEvent>(e, GEG_BIND_CB(deinit));
+		Dispatcher::dispatch<WindowCloseEvent>(e, GEG_BIND_CB(close));
     Dispatcher::dispatch<WindowResizeEvent>(e, GEG_BIND_CB(m_renderer->resize));
 
 		/* GEG_CORE_TRACE(e.to_string()); */

@@ -4,8 +4,8 @@
 #include "core/layer.hpp"
 #include "core/window.hpp"
 #include "events/events.hpp"
+#include "vulkan/renderer.hpp"
 #include "pch.hpp"
-#include "renderer/renderer.hpp"
 
 namespace geg {
 
@@ -47,12 +47,12 @@ namespace geg {
 
 	private:
 		void init();
-		bool deinit(const WindowCloseEvent &e);
+		bool close(const WindowCloseEvent &e);
 		void event_handler(Event &e);
 
 		bool is_running = true;
 		std::shared_ptr<Window> m_window;
 		LayerStack m_layers;
-		std::unique_ptr<Renderer> m_renderer;
+		std::unique_ptr<VulkanRenderer> m_renderer;
 	};
 }		 // namespace geg

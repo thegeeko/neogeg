@@ -13,3 +13,9 @@
 [submodule "engine/lib/vma-hpp"]
 	path = engine/lib/vma-hpp
 	url = https://github.com/YaaZ/VulkanMemoryAllocator-Hpp.git
+[submodule "engine/lib/imgui"]
+	path = engine/lib/imgui
+	url = https://github.com/thegeeko/imgui.git
+[submodule "engine/lib/assimp"]
+	path = engine/lib/assimp
+	url = https://github.com/assimp/assimp

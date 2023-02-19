@@ -1,13 +1,3 @@
-# ========= setup ================
-set(GCC_COVERAGE_COMPILE_FLAGS "")
-set(MSVC_COVERAGE_COMPILE_FLAGS "")
-
-if(NOT MSVC)
-	set(CMAKE_CXX_FLAGS	"${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}")
-else()
-	set(CMAKE_CXX_FLAGS	"${CMAKE_CXX_FLAGS} ${MSVC_COVERAGE_COMPILE_FLAGS}")
-endif()
-# ================================
 
 # =============== deps ==============
 find_package(Vulkan REQUIRED shaderc_combined)
@@ -18,11 +8,16 @@ set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(GLFW_VULKAN_STATIC ON CACHE BOOL "" FORCE)
 add_subdirectory("lib/glfw")
 
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(ASSIMP_INSTALL OFF CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_ZLIB ON CACHE BOOL "" FORCE)
+add_subdirectory("lib/assimp")
 
 add_subdirectory("lib/spdlog")
 add_subdirectory("lib/glm")
 add_subdirectory("lib/vma-hpp")
-
+add_subdirectory("lib/imgui")
 # ===================================
 
 # =============== geg ==============
@@ -57,6 +52,8 @@ target_link_libraries(geg PUBLIC spdlog::spdlog)
 target_link_libraries(geg PUBLIC glfw)
 target_link_libraries(geg PUBLIC glm)
 target_link_libraries(geg PUBLIC VulkanMemoryAllocator)
+target_link_libraries(geg PUBLIC imgui)
+target_link_libraries(geg PUBLIC assimp)
 
 # vma-hpp
 target_include_directories(geg PUBLIC "lib/vma-hpp/include")

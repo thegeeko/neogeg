@@ -12,7 +12,9 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateDebugUtilsMessengerEXT(
 }
 
 VKAPI_ATTR void VKAPI_CALL vkDestroyDebugUtilsMessengerEXT(
-		VkInstance instance, VkDebugUtilsMessengerEXT messenger, VkAllocationCallbacks const *pAllocator) {
+		VkInstance instance,
+		VkDebugUtilsMessengerEXT messenger,
+		VkAllocationCallbacks const *pAllocator) {
 	return pfnVkDestroyDebugUtilsMessengerEXT(instance, messenger, pAllocator);
 }
 
@@ -23,33 +25,38 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debugMessageFunc(
 		void * /*pUserData*/) {
 	std::ostringstream message;
 
-	message << vk::to_string(static_cast<vk::DebugUtilsMessageSeverityFlagBitsEXT>(messageSeverity)) << ": "
-					<< vk::to_string(static_cast<vk::DebugUtilsMessageTypeFlagsEXT>(messageTypes)) << ":\n";
+	message << vk::to_string(static_cast<vk::DebugUtilsMessageSeverityFlagBitsEXT>(messageSeverity))
+					<< ": " << vk::to_string(static_cast<vk::DebugUtilsMessageTypeFlagsEXT>(messageTypes))
+					<< ":\n";
 	message << std::string("\t") << "messageIDName   = <" << pCallbackData->pMessageIdName << ">\n";
 	message << std::string("\t") << "messageIdNumber = " << pCallbackData->messageIdNumber << "\n";
 	message << std::string("\t") << "message         = <" << pCallbackData->pMessage << ">\n";
 	if (0 < pCallbackData->queueLabelCount) {
 		message << std::string("\t") << "Queue Labels:\n";
 		for (uint32_t i = 0; i < pCallbackData->queueLabelCount; i++) {
-			message << std::string("\t\t") << "labelName = <" << pCallbackData->pQueueLabels[i].pLabelName << ">\n";
+			message << std::string("\t\t") << "labelName = <" << pCallbackData->pQueueLabels[i].pLabelName
+							<< ">\n";
 		}
 	}
 	if (0 < pCallbackData->cmdBufLabelCount) {
 		message << std::string("\t") << "CommandBuffer Labels:\n";
 		for (uint32_t i = 0; i < pCallbackData->cmdBufLabelCount; i++) {
-			message << std::string("\t\t") << "labelName = <" << pCallbackData->pCmdBufLabels[i].pLabelName << ">\n";
+			message << std::string("\t\t") << "labelName = <"
+							<< pCallbackData->pCmdBufLabels[i].pLabelName << ">\n";
 		}
 	}
 	if (0 < pCallbackData->objectCount) {
 		message << std::string("\t") << "Objects:\n";
 		for (uint32_t i = 0; i < pCallbackData->objectCount; i++) {
 			message << std::string("\t\t") << "Object " << i << "\n";
-			message << std::string("\t\t\t")
-							<< "objectType   = " << vk::to_string(static_cast<vk::ObjectType>(pCallbackData->pObjects[i].objectType))
+			message << std::string("\t\t\t") << "objectType   = "
+							<< vk::to_string(static_cast<vk::ObjectType>(pCallbackData->pObjects[i].objectType))
 							<< "\n";
-			message << std::string("\t\t\t") << "objectHandle = " << pCallbackData->pObjects[i].objectHandle << "\n";
+			message << std::string("\t\t\t")
+							<< "objectHandle = " << pCallbackData->pObjects[i].objectHandle << "\n";
 			if (pCallbackData->pObjects[i].pObjectName) {
-				message << std::string("\t\t\t") << "objectName   = <" << pCallbackData->pObjects[i].pObjectName << ">\n";
+				message << std::string("\t\t\t") << "objectName   = <"
+								<< pCallbackData->pObjects[i].pObjectName << ">\n";
 			}
 		}
 	}
@@ -123,7 +130,8 @@ namespace geg::vulkan {
 
 		instance = vk::createInstance({
 				.pApplicationInfo = &applicationInfo,
-				.enabledLayerCount = static_cast<uint32_t>(validation_layers_found ? validation_layers.size() : 0),
+				.enabledLayerCount =
+						static_cast<uint32_t>(validation_layers_found ? validation_layers.size() : 0),
 				.ppEnabledLayerNames = validation_layers_found ? validation_layers.data() : nullptr,
 				.enabledExtensionCount = static_cast<uint32_t>(req_exts.size()),
 				.ppEnabledExtensionNames = req_exts.data(),
@@ -131,8 +139,8 @@ namespace geg::vulkan {
 
 		if (found_all_opt_exts) {
 			// check if debug utils is supported
-			pfnVkCreateDebugUtilsMessengerEXT =
-					reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(instance.getProcAddr("vkCreateDebugUtilsMessengerEXT"));
+			pfnVkCreateDebugUtilsMessengerEXT = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
+					instance.getProcAddr("vkCreateDebugUtilsMessengerEXT"));
 
 			GEG_CORE_ASSERT(
 					pfnVkCreateDebugUtilsMessengerEXT,
@@ -146,9 +154,11 @@ namespace geg::vulkan {
 					"GetInstanceProcAddr: Unable to find pfnVkDestroyDebugUtilsMessengerEXT function.")
 
 			vk::DebugUtilsMessageSeverityFlagsEXT severityFlags(
-					vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning | vk::DebugUtilsMessageSeverityFlagBitsEXT::eError);
+					vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
+					vk::DebugUtilsMessageSeverityFlagBitsEXT::eError);
 			vk::DebugUtilsMessageTypeFlagsEXT messageTypeFlags(
-					vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral | vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance |
+					vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral |
+					vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance |
 					vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation);
 
 			m_debug_messenger = instance.createDebugUtilsMessengerEXT({
@@ -171,12 +181,14 @@ namespace geg::vulkan {
 		GEG_CORE_ASSERT(!gpus.empty(), "No GPU with vulkan support found");
 
 		auto found_device = std::find_if(gpus.begin(), gpus.end(), [](const vk::PhysicalDevice &gpu) {
-			return gpu.getFeatures().geometryShader && gpu.getProperties().deviceType == vk::PhysicalDeviceType::eDiscreteGpu;
+			return gpu.getFeatures().geometryShader &&
+						 gpu.getProperties().deviceType == vk::PhysicalDeviceType::eDiscreteGpu;
 		});
 
 		if (found_device == gpus.end()) {
-			found_device = std::find_if(
-					gpus.begin(), gpus.end(), [](const vk::PhysicalDevice &gpu) { return gpu.getFeatures().geometryShader; });
+			found_device = std::find_if(gpus.begin(), gpus.end(), [](const vk::PhysicalDevice &gpu) {
+				return gpu.getFeatures().geometryShader;
+			});
 		}
 
 		GEG_CORE_ASSERT(found_device != gpus.end(), "No suitable GPU found");
@@ -216,17 +228,48 @@ namespace geg::vulkan {
 		});
 
 		graphics_queue = logical_device.getQueue(queue_family_index.value(), 0);
+
+		// creating main command pool
+		command_pool = logical_device.createCommandPool(vk::CommandPoolCreateInfo{
+				.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
+				.queueFamilyIndex = queue_family_index.value(),
+		});
 	};
 
 	Device::~Device() {
 		GEG_CORE_WARN("destroying vulkan device");
+		logical_device.destroyCommandPool(command_pool);
 		logical_device.destroy();
 		instance.destroySurfaceKHR(surface);
 		if (m_debug_messenger_created) instance.destroyDebugUtilsMessengerEXT(m_debug_messenger);
 		instance.destroy();
 	};
 
-	void Device::init(){};
-	void Device::destroy(){};
+	void Device::single_time_command(std::function<void(vk::CommandBuffer)> lambda) {
+		auto command_buffer = logical_device
+															.allocateCommandBuffers({
+																	.commandPool = command_pool,
+																	.level = vk::CommandBufferLevel::ePrimary,
+																	.commandBufferCount = 1,
+															})
+															.front();
+
+		vk::CommandBufferUsageFlags flgs = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
+		command_buffer.begin({
+				.flags = flgs,
+		});
+
+		lambda(command_buffer);
+
+		command_buffer.end();
+
+		graphics_queue.submit(vk::SubmitInfo{
+				.commandBufferCount = 1,
+				.pCommandBuffers = &command_buffer,
+		});
+
+		graphics_queue.waitIdle();
+		logical_device.freeCommandBuffers(command_pool, {command_buffer});
+	}
 
 }		 // namespace geg::vulkan

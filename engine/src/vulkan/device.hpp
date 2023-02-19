@@ -15,15 +15,15 @@ namespace geg::vulkan {
 		Device(Device &&) = delete;
 		Device &operator=(Device &&) = delete;
 
-		void init();
-		void destroy();
-
 		vk::Device logical_device;
 		vk::Instance instance;
 		vk::PhysicalDevice physical_device;
 		vk::SurfaceKHR surface;
 		std::optional<uint32_t> queue_family_index;
 		vk::Queue graphics_queue;
+		vk::CommandPool command_pool;
+
+		void single_time_command(std::function<void(vk::CommandBuffer)>);
 
 	private:
 		bool m_debug_messenger_created = false;

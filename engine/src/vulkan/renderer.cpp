@@ -4,6 +4,7 @@
 #include "vk_mem_alloc.hpp"
 
 #include "vulkan/device.hpp"
+#include "imgui.h"
 
 namespace geg {
 	VulkanRenderer::VulkanRenderer(std::shared_ptr<Window> window) {
@@ -21,8 +22,9 @@ namespace geg {
 		});
 		m_swapchain = std::make_shared<vulkan::Swapchain>(m_window, m_device);
 		m_renderpass = std::make_shared<vulkan::Renderpass>(m_device, m_swapchain);
+		m_debug_ui = std::make_shared<vulkan::DebugUi>(m_window, m_device, m_renderpass, m_swapchain);
+		m_debug_ui->new_frame();
 
-		GEG_CORE_INFO(fs::current_path().string());
 		tmp_shader =
 				std::make_shared<vulkan::Shader>(m_device, fs::path("./assets/shaders/flat.glsl"), "flat");
 		tmp_pipeline =
@@ -36,14 +38,9 @@ namespace geg {
 				.flags = vk::FenceCreateFlagBits::eSignaled,
 		});
 
-		m_command_pool = m_device->logical_device.createCommandPool(vk::CommandPoolCreateInfo{
-				.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-				.queueFamilyIndex = m_device->queue_family_index.value(),
-		});
-
 		m_command_buffer = m_device->logical_device
 													 .allocateCommandBuffers(vk::CommandBufferAllocateInfo{
-															 .commandPool = m_command_pool,
+															 .commandPool = m_device->command_pool,
 															 .level = vk::CommandBufferLevel::ePrimary,
 															 .commandBufferCount = 1,
 													 })
@@ -56,7 +53,6 @@ namespace geg {
 		m_device->logical_device.destroySemaphore(m_render_semaphore);
 		m_device->logical_device.destroySemaphore(m_present_semaphore);
 		m_device->logical_device.destroyFence(m_render_fence);
-		m_device->logical_device.destroyCommandPool(m_command_pool);
 
 		cleanup_framebuffers();
 		GEG_CORE_WARN("destroying vulkan");
@@ -128,6 +124,9 @@ namespace geg {
 	}
 
 	void VulkanRenderer::render() {
+		ImGui::ShowDemoWindow();
+		m_debug_ui->render(m_current_dimintaions);
+
 		if (m_current_dimintaions.first == 0 || m_current_dimintaions.second == 0) { return; }
 
 		m_device->logical_device.waitForFences(m_render_fence, true, UINT64_MAX);
@@ -206,6 +205,7 @@ namespace geg {
 						.extent = m_swapchain->extent(),
 				});
 		m_command_buffer.draw(3, 1, 0, 0);
+		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_command_buffer);
 		m_command_buffer.endRenderPass();
 		m_command_buffer.end();
 
@@ -228,5 +228,7 @@ namespace geg {
 				.pSwapchains = &m_swapchain->swapchain,
 				.pImageIndices = &m_curr_index,
 		});
+
+		m_debug_ui->new_frame();
 	}
 }		 // namespace geg

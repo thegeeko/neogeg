@@ -20,6 +20,7 @@ namespace geg::vulkan {
 		const auto format() const { return m_surface_format.format; }
 		const auto images() const { return m_images; }
 		const auto extent() const { return m_extent; }
+		const uint32_t image_count() const { return m_images.size(); }
 
 		bool should_recreate(std::pair<uint32_t, uint32_t> curr_dimintaions) const {
 			return curr_dimintaions.first != m_extent.width || curr_dimintaions.second != m_extent.height;
