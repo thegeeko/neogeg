@@ -4,7 +4,7 @@
 namespace geg::vulkan {
 	GraphicsPipeline::GraphicsPipeline(
 			std::shared_ptr<Device> device,
-			std::shared_ptr<Renderpass> renderpass,
+			std::shared_ptr<DepthColorRenderpass> renderpass,
 			const Shader& shader) {
 		m_device = device;
 		m_renderpass = renderpass;

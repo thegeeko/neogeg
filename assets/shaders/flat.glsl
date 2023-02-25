@@ -1,5 +1,5 @@
 #version 450
-#extension GL_EXT_debug_printf : enable
+//#extension GL_EXT_debug_printf : enable
 
 #ifdef VERTEX_SHADER
 
@@ -28,7 +28,6 @@ layout( push_constant ) uniform constants
 void main() {
 	//const array of positions for the triangle
 	uint idx = in_Indices.data[gl_VertexIndex];
-	debugPrintfEXT("My float is %u", idx);
 
 	VertexData vtx = in_Vertices.data[idx];
 

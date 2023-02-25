@@ -32,9 +32,9 @@ public:
   std::string name = "Window resized";
   char category_flags = EventCategoryApplication;
 
-  inline float width() const { return w; }
+  inline uint32_t width() const { return w; }
 
-  inline float height() const { return h; }
+  inline uint32_t height() const { return h; }
 
   std::string to_string() const override {
     std::string str;

@@ -2,7 +2,7 @@
 
 #include "events/events.hpp"
 #include "vulkan/device.hpp"
-#include "vulkan/renderpass.hpp"
+#include "vulkan/depth-color-renderpass.hpp"
 #include "vulkan/swapchain.hpp"
 #include "vulkan/pipeline.hpp"
 #include "vulkan/debug-ui.hpp"
@@ -20,19 +20,14 @@ namespace geg {
 		bool resize(WindowResizeEvent dim);
 
 	private:
-		void create_framebuffers_and_depth();
-		void cleanup_framebuffers();
-
-		std::shared_ptr<Window> m_window;
+				std::shared_ptr<Window> m_window;
 
 		std::shared_ptr<vulkan::Device> m_device;
 		std::shared_ptr<vulkan::Swapchain> m_swapchain;
-		std::shared_ptr<vulkan::Renderpass> m_renderpass;
+		std::shared_ptr<vulkan::DepthColorRenderpass> m_renderpass;
 		std::shared_ptr<vulkan::DebugUi> m_debug_ui;
-		std::vector<vk::Framebuffer> m_swapchain_framebuffers;
 
-		std::pair<vma::UniqueImage, vma::UniqueAllocation> m_depth_image;
-		vk::UniqueImageView m_depth_image_view;
+		
 
 		std::pair<uint32_t, uint32_t> m_current_dimintaions;
 

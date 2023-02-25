@@ -6,11 +6,10 @@ namespace geg::vulkan {
 	DebugUi::DebugUi(
 			std::shared_ptr<Window> window,
 			std::shared_ptr<Device> device,
-			std::shared_ptr<Renderpass> renderpass,
 			std::shared_ptr<Swapchain> swapchain) {
 		m_device = device;
-		m_renderpass = renderpass;
 		m_window = window;
+		m_renderpass = std::make_shared<ColorRenderpass>(device, swapchain);
 
 		IMGUI_CHECKVERSION();
 		ImGui::CreateContext();
@@ -19,7 +18,7 @@ namespace geg::vulkan {
 		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 		io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-		//io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
 		io.Fonts->AddFontFromFileTTF("assets/fonts/mononoki.ttf", 13);
 
@@ -40,12 +39,41 @@ namespace geg::vulkan {
 			GEG_CORE_ASSERT(result == VK_SUCCESS, "imgui vulkan error");
 		};
 
-		ImGui_ImplVulkan_Init(&initInfo, renderpass->render_pass);
+		ImGui_ImplVulkan_Init(&initInfo, m_renderpass->render_pass);
 
 		device->single_time_command([](auto cmdb) { ImGui_ImplVulkan_CreateFontsTexture(cmdb); });
 		ImGui_ImplVulkan_DestroyFontUploadObjects();
 
+		m_command_buffer = m_device->logical_device
+													 .allocateCommandBuffers({
+															 .commandPool = m_device->command_pool,
+															 .level = vk::CommandBufferLevel::ePrimary,
+															 .commandBufferCount = 1,
+													 })
+													 .front();
+
 		GEG_CORE_INFO("Debug gui inited");
+	}
+
+	vk::CommandBuffer DebugUi::render(uint32_t image_index) {
+		ImGuiIO& io = ImGui::GetIO();
+		io.DisplaySize = ImVec2(m_curr_dimensions.first, m_curr_dimensions.second);
+
+		ImGui::Render();
+		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+			ImGui::UpdatePlatformWindows();
+			ImGui::RenderPlatformWindowsDefault();
+		}
+
+		m_command_buffer.begin(vk::CommandBufferBeginInfo{});
+		m_renderpass->begin(m_command_buffer, image_index);
+		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_command_buffer);
+		m_command_buffer.endRenderPass();
+		m_command_buffer.end();
+
+		new_frame();
+
+		return m_command_buffer;
 	}
 
 	DebugUi::~DebugUi() {
