@@ -4,6 +4,8 @@
 #include "events/base-event.hpp"
 #include "events/events.hpp"
 #include "vulkan/renderer.hpp"
+#include "core/time.hpp"
+#include "core/input.hpp"
 
 namespace geg {
 	App::App() {
@@ -36,15 +38,28 @@ namespace geg {
 
 	void App::event_handler(Event &e) {
 		Dispatcher::dispatch<WindowCloseEvent>(e, GEG_BIND_CB(close));
-    Dispatcher::dispatch<WindowResizeEvent>(e, GEG_BIND_CB(m_renderer->resize));
+		Dispatcher::dispatch<WindowResizeEvent>(e, GEG_BIND_CB(m_renderer->resize));
+
+		Dispatcher::dispatch<KeyPressedEvent>(e, [](const KeyPressedEvent &event) {
+			if (event.key_code() == input::KEY_T) {
+				GEG_CORE_INFO("----------- TIME ------------");
+				GEG_CORE_INFO("Time : {}", Timer::now());
+				GEG_CORE_INFO("TimeMs : {}", Timer::now_ms());
+				GEG_CORE_INFO("EngineTime : {}", Timer::geg_now());
+				GEG_CORE_INFO("EngineTimeMs : {}", Timer::geg_now_ms());
+				GEG_CORE_INFO("EngineDeltaTime : {}", Timer::dellta());
+			}
+			return false;
+		});
 
 		/* GEG_CORE_TRACE(e.to_string()); */
 	}
 
 	void App::run() {
 		while (is_running) {
+			Timer::update();
 			m_window->poll_events();
-      m_renderer->render();
+			m_renderer->render();
 		}
 	}
 }		 // namespace geg

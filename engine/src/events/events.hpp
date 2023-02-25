@@ -84,10 +84,10 @@ public:
 
   KeyPressedEvent(int keycode, int repeat_count)
       : m_keycode(keycode), m_repeat_count(repeat_count) {}
-  inline int GetRepeatCount() const { return m_repeat_count; }
+  inline int repeat_count() const { return m_repeat_count; }
   char category_flags =
       EventCategory::EventCategoryInput | EventCategory::EventCategoryKeyboard;
-  int getKeyCode() { return m_keycode; }
+  int key_code() const { return m_keycode; }
 
   std::string to_string() const override {
     std::string str = "pressed key " + std::to_string(m_keycode);
@@ -107,7 +107,7 @@ public:
   KeyReleasedEvent(int keycode) : m_keycode(keycode) {}
   char category_flags =
       EventCategory::EventCategoryInput | EventCategory::EventCategoryKeyboard;
-  int getKeyCode() { return m_keycode; }
+  int key_code() const { return m_keycode; }
 
   std::string to_string() const override {
     std::string str = "released key " + std::to_string(m_keycode);
@@ -125,7 +125,7 @@ public:
   IMPL_EVENT_TYPE(EventType::KeyTapped);
   char category_flags =
       EventCategory::EventCategoryInput | EventCategory::EventCategoryKeyboard;
-  int getKeyCode() { return m_keycode; }
+  int get_key_code() { return m_keycode; }
 
   std::string to_string() const override {
     std::string str = "Tapped key " + std::to_string(m_keycode);
@@ -150,8 +150,8 @@ public:
   std::string name = "Mouse Moved event";
   char category_flags =
       EventCategory::EventCategoryInput | EventCategory::EventCategoryMouse;
-  inline float getX() const { return x; }
-  inline float getY() const { return y; }
+  inline float get_x() const { return x; }
+  inline float get_y() const { return y; }
 
   std::string to_string() const override {
     std::string str;
