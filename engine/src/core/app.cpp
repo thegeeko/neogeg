@@ -29,6 +29,8 @@ namespace geg {
 	void App::init() {
 		GEG_CORE_INFO("init app");
 		m_renderer = std::make_unique<VulkanRenderer>(m_window);
+		m_camera_controller =
+				CameraPositioner_FirstPerson(glm::vec3(0.f), {0.f, 0.f, -1.f}, {0.f, 1.f, 0.f});
 	}
 
 	bool App::close(const WindowCloseEvent &e) {
@@ -52,14 +54,69 @@ namespace geg {
 			return false;
 		});
 
+		update_camera_controles(e);
+
 		/* GEG_CORE_TRACE(e.to_string()); */
+	}
+
+	void geg::App::update_camera_controles(Event &e) {
+		Dispatcher::dispatch<KeyPressedEvent>(e, [&](const KeyPressedEvent &event) {
+			auto key = event.key_code();
+
+			if (key == input::KEY_W)
+				m_camera_controller.movement.forward = true;
+			else if (key == input::KEY_S)
+				m_camera_controller.movement.backward = true;
+			else if (key == input::KEY_A)
+				m_camera_controller.movement.left = true;
+			else if (key == input::KEY_D)
+				m_camera_controller.movement.right = true;
+			else if (key == input::SPACE)
+				m_camera_controller.movement.down = true;
+			else if (key == input::KEY_LEFT_CONTROL)
+				m_camera_controller.movement.up = true;
+			else if (key == input::KEY_LEFT_SHIFT)
+				m_camera_controller.movement.fast_speed = true;
+
+			return false;
+		});
+
+		Dispatcher::dispatch<KeyReleasedEvent>(e, [&](const KeyReleasedEvent &event) {
+			auto key = event.key_code();
+
+			if (key == input::KEY_W)
+				m_camera_controller.movement.forward = false;
+			else if (key == input::KEY_S)
+				m_camera_controller.movement.backward = false;
+			else if (key == input::KEY_A)
+				m_camera_controller.movement.left = false;
+			else if (key == input::KEY_D)
+				m_camera_controller.movement.right = false;
+			else if (key == input::SPACE)
+				m_camera_controller.movement.down = false;
+			else if (key == input::KEY_LEFT_CONTROL)
+				m_camera_controller.movement.up = false;
+			else if (key == input::KEY_LEFT_SHIFT)
+				m_camera_controller.movement.fast_speed = false;
+
+			return false;
+		});
 	}
 
 	void App::run() {
 		while (is_running) {
 			Timer::update();
+			auto [mouse_x, mouse_y] = get_mouse_pos();
+			auto is_pressed = is_button_pressed(input::MOUSE_BUTTON_MIDDLE);
+
+			if (is_pressed)
+				glfwSetInputMode(m_window->raw_pointer, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+			else
+				glfwSetInputMode(m_window->raw_pointer, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+
+			m_camera_controller.update(Timer::dellta(), {mouse_x, mouse_y}, is_pressed);
 			m_window->poll_events();
-			m_renderer->render();
+			m_renderer->render(Camera{m_camera_controller});
 		}
 	}
 }		 // namespace geg

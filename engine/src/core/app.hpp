@@ -5,6 +5,8 @@
 #include "core/window.hpp"
 #include "events/events.hpp"
 #include "vulkan/renderer.hpp"
+#include "renderer/camera.hpp"
+#include "renderer/fps-camera.hpp"
 #include "pch.hpp"
 
 namespace geg {
@@ -39,9 +41,9 @@ namespace geg {
 			return {x, y};
 		}
 
-		void attach_layer(Layer *layer);
-		void attach_overlay(Layer *layer);
-		void detach(Layer *layer);
+		void attach_layer(Layer *layer) { m_layers.pushLayer(layer); };
+		void attach_overlay(Layer *layer) { m_layers.popOverlay(layer); };
+		void detach(Layer *layer) { m_layers.popLayer(layer); };
 
 		void run();
 
@@ -54,5 +56,9 @@ namespace geg {
 		std::shared_ptr<Window> m_window;
 		LayerStack m_layers;
 		std::unique_ptr<VulkanRenderer> m_renderer;
+
+		// to be refactored
+		CameraPositioner_FirstPerson m_camera_controller;
+		void update_camera_controles(Event& e);
 	};
 }		 // namespace geg

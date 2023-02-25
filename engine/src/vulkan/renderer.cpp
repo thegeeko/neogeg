@@ -60,7 +60,7 @@ namespace geg {
 		return false;
 	}
 
-	void VulkanRenderer::render() {
+	void VulkanRenderer::render(Camera camera) {
 		ImGui::ShowMetricsWindow();
 
 		ImGui::Begin("color");
@@ -68,7 +68,7 @@ namespace geg {
 		ImGui::End();
 
 		push.mvp = glm::perspective(
-				45.f, (float)m_current_dimintaions.first / m_current_dimintaions.second, 0.1f, 100.f);
+				45.f, (float)m_current_dimintaions.first / m_current_dimintaions.second, 0.1f, 100.f) * camera.view_matrix();
 
 		if (m_current_dimintaions.first == 0 || m_current_dimintaions.second == 0) { return; }
 

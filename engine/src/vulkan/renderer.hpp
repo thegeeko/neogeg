@@ -8,6 +8,7 @@
 #include "vulkan/debug-ui.hpp"
 #include "vk_mem_alloc.hpp"
 
+#include "renderer/camera.hpp"
 #include "assets/meshes/meshes.hpp"
 #include "shader.hpp"
 
@@ -16,7 +17,7 @@ namespace geg {
 	public:
 		VulkanRenderer(std::shared_ptr<Window> window);
 		~VulkanRenderer();
-		void render();
+		void render(Camera camera);
 		bool resize(WindowResizeEvent dim);
 
 	private:
