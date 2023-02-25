@@ -6,6 +6,8 @@
 #include "vulkan/device.hpp"
 #include "imgui.h"
 
+#include "glm/gtc/matrix_transform.hpp"
+
 namespace geg {
 	VulkanRenderer::VulkanRenderer(std::shared_ptr<Window> window) {
 		GEG_CORE_INFO("init vulkan");
@@ -14,12 +16,7 @@ namespace geg {
 		m_current_dimintaions = m_window->dimensions();
 
 		m_device = std::make_shared<vulkan::Device>(m_window);
-		m_allocator = vma::createAllocator({
-				.physicalDevice = m_device->physical_device,
-				.device = m_device->logical_device,
-				.instance = m_device->instance,
-				.vulkanApiVersion = VK_API_VERSION_1_2,
-		});
+
 		m_swapchain = std::make_shared<vulkan::Swapchain>(m_window, m_device);
 		m_renderpass = std::make_shared<vulkan::Renderpass>(m_device, m_swapchain);
 		m_debug_ui = std::make_shared<vulkan::DebugUi>(m_window, m_device, m_renderpass, m_swapchain);
@@ -45,6 +42,9 @@ namespace geg {
 															 .commandBufferCount = 1,
 													 })
 													 .front();
+
+
+		m = new vulkan::Mesh("assets/meshes/teapot.gltf", m_device);
 	}
 
 	VulkanRenderer::~VulkanRenderer() {
@@ -77,7 +77,7 @@ namespace geg {
 				.usage = vma::MemoryUsage::eGpuOnly,
 		};
 
-		m_depth_image = m_allocator.createImageUnique(image_info, alloc_info);
+		m_depth_image = m_device->allocator.createImageUnique(image_info, alloc_info);
 		m_depth_image_view = m_device->logical_device.createImageViewUnique({
 				.image = m_depth_image.first.get(),
 				.viewType = vk::ImageViewType::e2D,
@@ -124,7 +124,14 @@ namespace geg {
 	}
 
 	void VulkanRenderer::render() {
-		ImGui::ShowDemoWindow();
+		ImGui::ShowMetricsWindow();
+
+		ImGui::Begin("color");
+		ImGui::ColorPicker4("color", &push.color[0]);
+		ImGui::End();
+
+		push.mvp = glm::perspective(45.f, (float)m_current_dimintaions.first/m_current_dimintaions.second, 0.1f, 100.f);
+
 		m_debug_ui->render(m_current_dimintaions);
 
 		if (m_current_dimintaions.first == 0 || m_current_dimintaions.second == 0) { return; }
@@ -204,7 +211,21 @@ namespace geg {
 						.offset = 0,
 						.extent = m_swapchain->extent(),
 				});
-		m_command_buffer.draw(3, 1, 0, 0);
+		m_command_buffer.pushConstants(
+				tmp_pipeline->pipeline_layout,
+				vk::ShaderStageFlagBits::eAllGraphics,
+				0,
+				sizeof(Push),
+				&push);
+		m_command_buffer.bindDescriptorSets(
+				vk::PipelineBindPoint::eGraphics,
+				tmp_pipeline->pipeline_layout,
+				0,
+				1,
+				&m->descriptor_set,
+				0,
+				nullptr);
+		m_command_buffer.draw(m->index_count(), 1, 0, 0);
 		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_command_buffer);
 		m_command_buffer.endRenderPass();
 		m_command_buffer.end();

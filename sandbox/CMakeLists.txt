@@ -37,7 +37,7 @@ if(MSVC)
     sandbox
     PROPERTY
     VS_DEBUGGER_WORKING_DIRECTORY
-    "${CMAKE_BINARY_DIR}"
+    "${PROJECT_SOURCE_DIR}"
   )
 endif()
 

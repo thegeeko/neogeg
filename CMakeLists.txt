@@ -19,6 +19,19 @@ endif()
 
 include(CMake/CommonMacros.cmake)
 
+file(
+	GLOB_RECURSE # recursive
+  GEG_ASSETS # variable to store the source files and headers
+	CONFIGURE_DEPENDS # make a dependency
+  RELATIVE
+	"${CMAKE_CURRENT_SOURCE_DIR}"
+  "${CMAKE_CURRENT_SOURCE_DIR}/assets/*"
+)
+
+SETUP_GROUPS("${GEG_ASSETS}")
+
+add_custom_target(assets SOURCES ${GEG_ASSETS})
+
 add_subdirectory(engine)
 add_subdirectory(sandbox)
 

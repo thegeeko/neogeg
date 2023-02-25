@@ -1,20 +1,21 @@
+#pragma once
+
 #include <memory>
 #include "geg-vulkan.hpp"
-#include <vulkan/vulkan_enums.hpp>
-#include "vulkan/device.hpp"
 
 namespace geg::vulkan {
+	class Device;
 	class DescriptorAllocator {
 	public:
-		DescriptorAllocator(std::shared_ptr<Device> device);
+		DescriptorAllocator(Device* device);
 		~DescriptorAllocator();
 
 		void reset_pools();
 		std::optional<vk::DescriptorSet> allocate(vk::DescriptorSetLayout layout);
 
 	private:
-		std::shared_ptr<Device> m_device;
-		std::optional<vk::DescriptorPool> m_current_pool = nullptr;
+		Device* m_device;
+		std::optional<vk::DescriptorPool> m_current_pool = {};
 		// this can be tweaked based on the usage of the descriptor sets
 		// the first is the descriptor type, the second is the number of descriptors of that
 		// DescriptorType
@@ -35,11 +36,13 @@ namespace geg::vulkan {
 		std::vector<VkDescriptorPool> m_free_pools;
 
 		vk::DescriptorPool get_free_pool();
+
+		friend class DescriptorBuilder;
 	};
 
 	class DescriptorLayoutCache {
 	public:
-		DescriptorLayoutCache(std::shared_ptr<Device> device);
+		DescriptorLayoutCache(Device* device);
 		~DescriptorLayoutCache();
 
 		vk::DescriptorSetLayout create_layout(vk::DescriptorSetLayoutCreateInfo* info);
@@ -59,7 +62,7 @@ namespace geg::vulkan {
 
 		std::unordered_map<DescriptorLayoutInfo, vk::DescriptorSetLayout, DescriptorLayoutHash>
 				layout_cache;
-		std::shared_ptr<Device> m_device;
+		Device* m_device;
 	};
 
 	class DescriptorBuilder {
@@ -69,34 +72,34 @@ namespace geg::vulkan {
 
 		DescriptorBuilder& bind_buffer(
 				uint32_t binding,
-				VkDescriptorBufferInfo* bufferInfo,
-				VkDescriptorType type,
-				VkShaderStageFlags stageFlags);
+				vk::DescriptorBufferInfo* bufferInfo,
+				vk::DescriptorType type,
+				vk::ShaderStageFlags stageFlags);
 
 		// for building a descriptor set layout only
 		DescriptorBuilder& bind_buffer_layout(
-				uint32_t binding, VkDescriptorType type, VkShaderStageFlags stageFlags);
+				uint32_t binding, vk::DescriptorType type, vk::ShaderStageFlags stageFlags);
 
 		DescriptorBuilder& bind_image(
 				uint32_t binding,
-				VkDescriptorImageInfo* imageInfo,
-				VkDescriptorType type,
-				VkShaderStageFlags stageFlags);
+				vk::DescriptorImageInfo* imageInfo,
+				vk::DescriptorType type,
+				vk::ShaderStageFlags stageFlags);
 
 		DescriptorBuilder& bind_image_layout(
-				uint32_t binding, VkDescriptorType type, VkShaderStageFlags stageFlags);
+				uint32_t binding, vk::DescriptorType type, vk::ShaderStageFlags stageFlags);
 
-		bool build(VkDescriptorSet& set, VkDescriptorSetLayout& layout);
-		bool build(VkDescriptorSetLayout& layout);
+		std::optional<std::pair<vk::DescriptorSet, vk::DescriptorSetLayout>> build();
+		std::optional<vk::DescriptorSetLayout> build_layout();
 
 	private:
 		DescriptorBuilder() = default;
 
-		std::vector<VkWriteDescriptorSet> writes;
-		std::vector<VkDescriptorSetLayoutBinding> bindings;
+		std::vector<vk::WriteDescriptorSet> writes;
+		std::vector<vk::DescriptorSetLayoutBinding> bindings;
 
-		DescriptorLayoutCache* cache;
-		DescriptorAllocator* alloc;
+		DescriptorLayoutCache* m_cache = nullptr;
+		DescriptorAllocator* m_alloc = nullptr;
 	};
 
 }		 // namespace geg::vulkan

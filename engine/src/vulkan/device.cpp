@@ -1,4 +1,5 @@
 #include "device.hpp"
+#include "vk_mem_alloc.hpp"
 
 PFN_vkCreateDebugUtilsMessengerEXT pfnVkCreateDebugUtilsMessengerEXT;
 PFN_vkDestroyDebugUtilsMessengerEXT pfnVkDestroyDebugUtilsMessengerEXT;
@@ -234,6 +235,16 @@ namespace geg::vulkan {
 				.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
 				.queueFamilyIndex = queue_family_index.value(),
 		});
+
+		allocator = vma::createAllocator({
+				.physicalDevice = physical_device,
+				.device = logical_device,
+				.instance = instance,
+				.vulkanApiVersion = VK_API_VERSION_1_2,
+		});
+
+		m_descriptor_allocator = std::make_unique<DescriptorAllocator>(this);
+		m_descriptor_layout_cache = std::make_unique<DescriptorLayoutCache>(this);
 	};
 
 	Device::~Device() {
@@ -270,6 +281,40 @@ namespace geg::vulkan {
 
 		graphics_queue.waitIdle();
 		logical_device.freeCommandBuffers(command_pool, {command_buffer});
+	}
+
+	void Device::copy_buffer(vk::Buffer src, vk::Buffer dst, vk::DeviceSize size) {
+		single_time_command([&size, &src, &dst](vk::CommandBuffer command_buffer) {
+			vk::BufferCopy copy_region{
+					.srcOffset = 0,
+					.dstOffset = 0,
+					.size = size,
+			};
+
+			command_buffer.copyBuffer(src, dst, copy_region);
+		});
+	}
+
+	void Device::upload_to_buffer(vk::Buffer buffer, void *data, vk::DeviceSize size) {
+		vk::BufferCreateInfo buffer_info{
+				.size = size,
+				.usage = vk::BufferUsageFlagBits::eTransferDst,
+				.sharingMode = vk::SharingMode::eExclusive,
+		};
+
+		vma::AllocationCreateInfo alloc_info = {
+				.usage = vma::MemoryUsage::eCpuCopy,
+				.requiredFlags =
+						vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
+		};
+
+		auto [staging_buffer, staging_alloc] = allocator.createBufferUnique(buffer_info, alloc_info);
+
+		void *mapping_addr = allocator.mapMemory(staging_alloc.get());
+		memcpy(mapping_addr, data, size);
+		allocator.unmapMemory(staging_alloc.get());
+
+		copy_buffer(staging_buffer.get(), buffer, size);
 	}
 
 }		 // namespace geg::vulkan

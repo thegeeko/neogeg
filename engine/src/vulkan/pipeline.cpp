@@ -1,4 +1,5 @@
 #include "pipeline.hpp"
+#include "glm/glm.hpp"
 
 namespace geg::vulkan {
 	GraphicsPipeline::GraphicsPipeline(
@@ -69,7 +70,27 @@ namespace geg::vulkan {
 				.pAttachments = &color_blend_attachment,
 		};
 
-		pipeline_layout = m_device->logical_device.createPipelineLayout(vk::PipelineLayoutCreateInfo{});
+		vk::PushConstantRange push_range{
+				.stageFlags = vk::ShaderStageFlagBits::eAllGraphics,
+				.offset = 0,
+				.size = sizeof(glm::vec4) + sizeof(glm::mat4),
+		};
+
+		auto layout = device->build_descriptor()
+											.bind_buffer_layout(
+													0, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex)
+											.bind_buffer_layout(
+													1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex)
+											.build_layout()
+											.value();
+
+		pipeline_layout = m_device->logical_device.createPipelineLayout(vk::PipelineLayoutCreateInfo{
+				.setLayoutCount = 1,
+				.pSetLayouts = &layout,
+				.pushConstantRangeCount = 1,
+				.pPushConstantRanges = &push_range,
+		});
+
 		auto result = m_device->logical_device.createGraphicsPipeline(
 				{},
 				{
