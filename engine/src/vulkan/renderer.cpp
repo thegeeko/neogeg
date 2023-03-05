@@ -1,163 +1,98 @@
-#include "vulkan/renderer.hpp"
+#include "renderer.hpp"
 
-#define VMA_IMPLEMENTATION
-#include "vk_mem_alloc.hpp"
+#include "vulkan/renderpass.hpp"
 
-#include "vulkan/device.hpp"
-#include "imgui.h"
+namespace geg::vulkan {
+	Renderer::Renderer(
+			const std::shared_ptr<Device> device,
+			std::shared_ptr<Swapchain> swapchain,
+			std::optional<DepthResources> depth_resources,
+			RendererInfo info):
+			m_device(std::move(device)),
+			m_swapchain(std::move(swapchain)), m_has_depth(depth_resources.has_value()),
+			m_should_clear(info.should_clear), m_should_present(info.should_present) {
+		const auto color_format = m_swapchain->format();
 
-#include "glm/gtc/matrix_transform.hpp"
+		if (m_has_depth) { m_depth_resources = depth_resources; }
 
-namespace geg {
-	VulkanRenderer::VulkanRenderer(std::shared_ptr<Window> window) {
-		GEG_CORE_INFO("init vulkan");
+		const RenderpassInfo renderpass_info{
+				.has_depth = m_has_depth,
+				.m_should_clear = m_should_clear,
+				.should_present = m_should_present,
+				.depth_format = m_has_depth ? depth_resources.value().format : vk::Format::eUndefined,
+				.color_format = color_format,
+		};
+		m_renderpass = create_renderpass(device, renderpass_info);
 
-		m_window = window;
-		m_current_dimintaions = m_window->dimensions();
-
-		m_device = std::make_shared<vulkan::Device>(m_window);
-
-		m_swapchain = std::make_shared<vulkan::Swapchain>(m_window, m_device);
-		m_renderpass = std::make_shared<vulkan::DepthColorRenderpass>(m_device, m_swapchain);
-		m_debug_ui = std::make_shared<vulkan::DebugUi>(m_window, m_device, m_swapchain);
-		m_debug_ui->new_frame();
-
-		tmp_shader =
-				std::make_shared<vulkan::Shader>(m_device, fs::path("./assets/shaders/flat.glsl"), "flat");
-		tmp_pipeline =
-				std::make_shared<vulkan::GraphicsPipeline>(m_device, m_renderpass, *tmp_shader.get());
-
-		m_present_semaphore = m_device->logical_device.createSemaphore(vk::SemaphoreCreateInfo{});
-		m_render_semaphore = m_device->logical_device.createSemaphore(vk::SemaphoreCreateInfo{});
-		m_render_fence = m_device->logical_device.createFence({
-				.flags = vk::FenceCreateFlagBits::eSignaled,
-		});
-
-		m_command_buffer = m_device->logical_device
-													 .allocateCommandBuffers({
-															 .commandPool = m_device->command_pool,
-															 .level = vk::CommandBufferLevel::ePrimary,
-															 .commandBufferCount = 1,
-													 })
-													 .front();
-
-		m = new vulkan::Mesh("assets/meshes/teapot.gltf", m_device);
+		create_framebuffers();
 	}
 
-	VulkanRenderer::~VulkanRenderer() {
-		m_device->logical_device.waitIdle();
-
-		m_device->logical_device.destroySemaphore(m_render_semaphore);
-		m_device->logical_device.destroySemaphore(m_present_semaphore);
-		m_device->logical_device.destroyFence(m_render_fence);
-
-		GEG_CORE_WARN("destroying vulkan");
+	Renderer::~Renderer() {
+		cleanup_framebuffers();
+		m_device->vkdevice.destroyRenderPass(m_renderpass);
 	}
 
-	bool VulkanRenderer::resize(WindowResizeEvent dim) {
-		m_current_dimintaions = {dim.width(), dim.height()};
-
-		return false;
+	void Renderer::create_framebuffers() {
+		for (auto& [_, image_view] : m_swapchain->images()) {
+			std::vector<vk::ImageView> attachments = {image_view};
+			if (m_has_depth) { attachments.push_back(m_depth_resources.value().image_view); }
+			vk::FramebufferCreateInfo framebuffer_info = {};
+			framebuffer_info.renderPass = m_renderpass;
+			framebuffer_info.attachmentCount = static_cast<uint32_t>(attachments.size());
+			framebuffer_info.pAttachments = attachments.data();
+			framebuffer_info.width = m_swapchain->extent().width;
+			framebuffer_info.height = m_swapchain->extent().height;
+			framebuffer_info.layers = 1;
+			m_framebuffers.push_back(m_device->vkdevice.createFramebuffer(framebuffer_info));
+		}
 	}
 
-	void VulkanRenderer::render(Camera camera) {
-		ImGui::ShowMetricsWindow();
+	void Renderer::cleanup_framebuffers() {
+		for (auto& fb : m_framebuffers)
+			m_device->vkdevice.destroyFramebuffer(fb);
+	}
 
-		ImGui::Begin("color");
-		ImGui::ColorPicker4("color", &push.color[0]);
-		ImGui::End();
+	void Renderer::resize(std::optional<DepthResources> depth_resources) {
+		m_depth_resources = depth_resources;
+		cleanup_framebuffers();
+		create_framebuffers();
+	}
 
-		push.mvp = glm::perspective(
-				45.f, (float)m_current_dimintaions.first / m_current_dimintaions.second, 0.1f, 100.f) * camera.view_matrix();
+	void Renderer::begin(const vk::CommandBuffer& cmd, uint32_t image_index) {
+		// @TODO make clear layer does the clearing
+		std::vector<vk::ClearValue> clear{};
 
-		if (m_current_dimintaions.first == 0 || m_current_dimintaions.second == 0) { return; }
+		if (m_should_clear) {
+			clear.push_back({
+					.color =
+							{
+									.float32 = {{1, 1, 1, 1}},
+							},
+			});
 
-		m_device->logical_device.waitForFences(m_render_fence, true, UINT64_MAX);
-		m_device->logical_device.resetFences(m_render_fence);
-
-		if (m_swapchain->should_recreate(m_current_dimintaions)) {
-			m_swapchain->recreate();
-			m_renderpass->recreate_resources();
-			m_debug_ui->resize(m_current_dimintaions);
+			if (m_has_depth) {
+				clear.push_back({
+						.depthStencil =
+								{
+										.depth = 1,
+										.stencil = 0,
+								},
+				});
+			}
 		}
 
-		auto res = m_device->logical_device.acquireNextImageKHR(
-				m_swapchain->swapchain, UINT64_MAX, m_present_semaphore);
-
-		if (res.result != vk::Result::eSuccess) __debugbreak();
-
-		m_curr_index = res.value;
-
-		m_command_buffer.reset();
-
-		vk::Viewport vp{
-				.x = 0,
-				.y = 0,
-				.width = (float)m_swapchain->extent().width,
-				.height = (float)m_swapchain->extent().height,
-				.minDepth = 0,
-				.maxDepth = 1,
-		};
-
-		m_command_buffer.begin(vk::CommandBufferBeginInfo{});
-		m_renderpass->begin(m_command_buffer, m_curr_index);
-		m_command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, tmp_pipeline->pipeline);
-		m_command_buffer.setViewport(
-				0,
-				vk::Viewport{
-						.x = 0,
-						.y = 0,
-						.width = (float)m_swapchain->extent().width,
-						.height = (float)m_swapchain->extent().height,
-						.minDepth = 0,
-						.maxDepth = 1,
-				});
-		m_command_buffer.setScissor(
-				0,
-				vk::Rect2D{
-						.offset = 0,
-						.extent = m_swapchain->extent(),
-				});
-		m_command_buffer.pushConstants(
-				tmp_pipeline->pipeline_layout,
-				vk::ShaderStageFlagBits::eAllGraphics,
-				0,
-				sizeof(Push),
-				&push);
-		m_command_buffer.bindDescriptorSets(
-				vk::PipelineBindPoint::eGraphics,
-				tmp_pipeline->pipeline_layout,
-				0,
-				1,
-				&m->descriptor_set,
-				0,
-				nullptr);
-		m_command_buffer.draw(m->index_count(), 1, 0, 0);
-		m_command_buffer.endRenderPass();
-		m_command_buffer.end();
-
-		auto debug_cmd = m_debug_ui->render(m_curr_index);
-
-		std::array<vk::CommandBuffer, 2> cmds = {m_command_buffer, debug_cmd};
-
-		vk::PipelineStageFlags pipeflg = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-		vk::SubmitInfo subinfo{
-				.waitSemaphoreCount = 1,
-				.pWaitSemaphores = &m_present_semaphore,
-				.pWaitDstStageMask = &pipeflg,
-				.commandBufferCount = static_cast<uint32_t>(cmds.size()),
-				.pCommandBuffers = cmds.data(),
-				.signalSemaphoreCount = 1,
-				.pSignalSemaphores = &m_render_semaphore,
-		};
-		m_device->graphics_queue.submit(subinfo, m_render_fence);
-
-		m_device->graphics_queue.presentKHR(vk::PresentInfoKHR{
-				.waitSemaphoreCount = 1,
-				.pWaitSemaphores = &m_render_semaphore,
-				.swapchainCount = 1,
-				.pSwapchains = &m_swapchain->swapchain,
-				.pImageIndices = &m_curr_index,
-		});
+		cmd.beginRenderPass(
+				vk::RenderPassBeginInfo{
+						.renderPass = m_renderpass,
+						.framebuffer = m_framebuffers[image_index],
+						.renderArea =
+								{
+										.offset = {0, 0},
+										.extent = m_swapchain->extent(),
+								},
+						.clearValueCount = static_cast<uint32_t>(clear.size()),
+						.pClearValues = clear.data(),
+				},
+				vk::SubpassContents::eInline);
 	}
-}		 // namespace geg
+}		 // namespace geg::vulkan

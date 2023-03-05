@@ -4,10 +4,10 @@ namespace geg {
 	class Timer {
 	public:
 		static void update();
-		static long now();
-		static long now_ms();
+		static uint64_t now();
+		static uint64_t now_ms();
 		static double geg_now();
 		static double geg_now_ms();
-		static float dellta();
+		static double delta();
 	};
 }		 // namespace geg

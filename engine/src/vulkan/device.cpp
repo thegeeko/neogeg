@@ -79,7 +79,7 @@ namespace geg::vulkan {
 	Device::Device(std::shared_ptr<Window> window) {
 		constexpr auto validation_layers = std::array<const char *, 1>{"VK_LAYER_KHRONOS_validation"};
 
-		m_window = window;
+		this->window = window;
 
 		vk::ApplicationInfo applicationInfo{
 				.pApplicationName = "GEG",
@@ -174,7 +174,7 @@ namespace geg::vulkan {
 
 		// create surface
 		VkSurfaceKHR tmp_surface;
-		glfwCreateWindowSurface(instance, m_window->raw_pointer, nullptr, &tmp_surface);
+		glfwCreateWindowSurface(instance, window->raw_pointer, nullptr, &tmp_surface);
 		surface = tmp_surface;
 
 		// selecting a phiysical device
@@ -221,24 +221,24 @@ namespace geg::vulkan {
 		};
 
 		std::array<const char *, 1> device_extensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
-		logical_device = physical_device.createDevice({
+		vkdevice = physical_device.createDevice({
 				.queueCreateInfoCount = 1,
 				.pQueueCreateInfos = &device_queue_create_info,
 				.enabledExtensionCount = static_cast<uint32_t>(1),
 				.ppEnabledExtensionNames = device_extensions.data(),
 		});
 
-		graphics_queue = logical_device.getQueue(queue_family_index.value(), 0);
+		graphics_queue = vkdevice.getQueue(queue_family_index.value(), 0);
 
 		// creating main command pool
-		command_pool = logical_device.createCommandPool(vk::CommandPoolCreateInfo{
+		command_pool = vkdevice.createCommandPool(vk::CommandPoolCreateInfo{
 				.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
 				.queueFamilyIndex = queue_family_index.value(),
 		});
 
 		allocator = vma::createAllocator({
 				.physicalDevice = physical_device,
-				.device = logical_device,
+				.device = vkdevice,
 				.instance = instance,
 				.vulkanApiVersion = VK_API_VERSION_1_2,
 		});
@@ -249,15 +249,15 @@ namespace geg::vulkan {
 
 	Device::~Device() {
 		GEG_CORE_WARN("destroying vulkan device");
-		logical_device.destroyCommandPool(command_pool);
-		logical_device.destroy();
+		vkdevice.destroyCommandPool(command_pool);
+		vkdevice.destroy();
 		instance.destroySurfaceKHR(surface);
 		if (m_debug_messenger_created) instance.destroyDebugUtilsMessengerEXT(m_debug_messenger);
 		instance.destroy();
 	};
 
 	void Device::single_time_command(std::function<void(vk::CommandBuffer)> lambda) {
-		auto command_buffer = logical_device
+		auto command_buffer = vkdevice
 															.allocateCommandBuffers({
 																	.commandPool = command_pool,
 																	.level = vk::CommandBufferLevel::ePrimary,
@@ -280,7 +280,7 @@ namespace geg::vulkan {
 		});
 
 		graphics_queue.waitIdle();
-		logical_device.freeCommandBuffers(command_pool, {command_buffer});
+		vkdevice.freeCommandBuffers(command_pool, {command_buffer});
 	}
 
 	void Device::copy_buffer(vk::Buffer src, vk::Buffer dst, vk::DeviceSize size) {

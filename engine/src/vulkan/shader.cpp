@@ -20,7 +20,7 @@ namespace geg::vulkan {
 			GEG_CORE_ERROR("Failed to compile vertex shader: {0}", vert_spv.GetErrorMessage());
 		}
 
-		vert_module = m_device->logical_device.createShaderModule({
+		vert_module = m_device->vkdevice.createShaderModule({
 				.codeSize = sizeof(uint32_t) * (vert_spv.end() - vert_spv.begin()),
 				.pCode = vert_spv.begin(),
 		});
@@ -40,7 +40,7 @@ namespace geg::vulkan {
 			GEG_CORE_ERROR("Failed to compile fragment shader: {0}", frag_spv.GetErrorMessage());
 		}
 
-		frag_module = m_device->logical_device.createShaderModule({
+		frag_module = m_device->vkdevice.createShaderModule({
 				.codeSize = sizeof(uint32_t) * (frag_spv.end() - frag_spv.begin()),
 				.pCode = frag_spv.begin(),
 		});
@@ -55,7 +55,7 @@ namespace geg::vulkan {
 	}
 
 	Shader::~Shader() {
-		m_device->logical_device.destroyShaderModule(vert_module);
-		m_device->logical_device.destroyShaderModule(frag_module);
+		m_device->vkdevice.destroyShaderModule(vert_module);
+		m_device->vkdevice.destroyShaderModule(frag_module);
 	}
 }		 // namespace geg::vulkan

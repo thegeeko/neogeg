@@ -1,51 +1,50 @@
 #pragma once
 
-#include "events/events.hpp"
 #include "vulkan/device.hpp"
-#include "vulkan/depth-color-renderpass.hpp"
 #include "vulkan/swapchain.hpp"
-#include "vulkan/pipeline.hpp"
-#include "vulkan/debug-ui.hpp"
-#include "vk_mem_alloc.hpp"
-
 #include "renderer/camera.hpp"
-#include "assets/meshes/meshes.hpp"
-#include "shader.hpp"
 
-namespace geg {
-	class VulkanRenderer {
-	public:
-		VulkanRenderer(std::shared_ptr<Window> window);
-		~VulkanRenderer();
-		void render(Camera camera);
-		bool resize(WindowResizeEvent dim);
-
-	private:
-				std::shared_ptr<Window> m_window;
-
-		std::shared_ptr<vulkan::Device> m_device;
-		std::shared_ptr<vulkan::Swapchain> m_swapchain;
-		std::shared_ptr<vulkan::DepthColorRenderpass> m_renderpass;
-		std::shared_ptr<vulkan::DebugUi> m_debug_ui;
-
-		
-
-		std::pair<uint32_t, uint32_t> m_current_dimintaions;
-
-		// to delete
-		std::shared_ptr<vulkan::Shader> tmp_shader;
-		std::shared_ptr<vulkan::GraphicsPipeline> tmp_pipeline;
-		vulkan::Mesh* m;
-		struct Push {
-			glm::vec4 color = glm::vec4(0.6f, 0.4f, 0.1f, 1.f);
-			glm::mat4 mvp = glm::mat4(1);
-		} push{};
-
-		vk::CommandBuffer m_command_buffer;
-
-		uint32_t m_curr_index = -12;		// magic number for debugging
-		vk::Semaphore m_present_semaphore;
-		vk::Semaphore m_render_semaphore;
-		vk::Fence m_render_fence;
+namespace geg::vulkan {
+	struct DepthResources {
+		vk::Format format = vk::Format::eUndefined;
+		vk::ImageView image_view = VK_NULL_HANDLE;
 	};
-}		 // namespace geg
+
+	struct RendererInfo {
+		bool should_present = false;
+		bool should_clear = false;
+	};
+
+	class Renderer {
+	public:
+		Renderer(
+				std::shared_ptr<Device> device,
+				std::shared_ptr<Swapchain> swapchain,
+				std::optional<DepthResources> depth_resources = {},
+				RendererInfo info = {});
+		virtual ~Renderer();
+
+		void create_framebuffers();
+		void cleanup_framebuffers();
+
+		void resize(std::optional<DepthResources> depth_resources = {});
+
+		virtual void fill_commands(
+				const vk::CommandBuffer& cmd, const Camera& camera, uint32_t frame_index) = 0;
+
+	protected:
+		void begin(const vk::CommandBuffer& cmd, uint32_t image_index);
+
+		std::shared_ptr<Device> m_device;
+		std::shared_ptr<Swapchain> m_swapchain;
+
+		vk::RenderPass m_renderpass;
+		std::vector<vk::Framebuffer> m_framebuffers;
+
+		bool m_has_depth;
+		bool m_should_clear;
+		bool m_should_present;
+
+		std::optional<DepthResources> m_depth_resources = {};
+	};
+};		// namespace geg::vulkan

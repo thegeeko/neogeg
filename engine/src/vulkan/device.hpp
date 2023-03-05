@@ -17,7 +17,7 @@ namespace geg::vulkan {
 		Device(Device &&) = delete;
 		Device &operator=(Device &&) = delete;
 
-		vk::Device logical_device;
+		vk::Device vkdevice;
 		vk::Instance instance;
 		vk::PhysicalDevice physical_device;
 		vk::SurfaceKHR surface;
@@ -25,6 +25,7 @@ namespace geg::vulkan {
 		vk::Queue graphics_queue;
 		vk::CommandPool command_pool;
 		vma::Allocator allocator;
+		std::shared_ptr<Window> window;
 
 		// helpers
 		void single_time_command(std::function<void(vk::CommandBuffer)>);
@@ -36,7 +37,6 @@ namespace geg::vulkan {
 
 	private:
 		bool m_debug_messenger_created = false;
-		std::shared_ptr<Window> m_window;
 		vk::DebugUtilsMessengerEXT m_debug_messenger;
 
 		std::unique_ptr<DescriptorAllocator> m_descriptor_allocator;

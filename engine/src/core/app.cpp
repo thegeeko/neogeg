@@ -28,7 +28,7 @@ namespace geg {
 
 	void App::init() {
 		GEG_CORE_INFO("init app");
-		m_renderer = std::make_unique<VulkanRenderer>(m_window);
+		m_graphics_context = std::make_unique<VulkanContext>(m_window);
 		m_camera_controller =
 				CameraPositioner_FirstPerson(glm::vec3(0.f), {0.f, 0.f, -1.f}, {0.f, 1.f, 0.f});
 	}
@@ -40,7 +40,7 @@ namespace geg {
 
 	void App::event_handler(Event &e) {
 		Dispatcher::dispatch<WindowCloseEvent>(e, GEG_BIND_CB(close));
-		Dispatcher::dispatch<WindowResizeEvent>(e, GEG_BIND_CB(m_renderer->resize));
+		Dispatcher::dispatch<WindowResizeEvent>(e, GEG_BIND_CB(m_graphics_context->resize));
 
 		Dispatcher::dispatch<KeyPressedEvent>(e, [](const KeyPressedEvent &event) {
 			if (event.key_code() == input::KEY_T) {
@@ -49,17 +49,17 @@ namespace geg {
 				GEG_CORE_INFO("TimeMs : {}", Timer::now_ms());
 				GEG_CORE_INFO("EngineTime : {}", Timer::geg_now());
 				GEG_CORE_INFO("EngineTimeMs : {}", Timer::geg_now_ms());
-				GEG_CORE_INFO("EngineDeltaTime : {}", Timer::dellta());
+				GEG_CORE_INFO("EngineDeltaTime : {}", Timer::delta());
 			}
 			return false;
 		});
 
-		update_camera_controles(e);
+		update_camera_controls(e);
 
 		/* GEG_CORE_TRACE(e.to_string()); */
 	}
 
-	void geg::App::update_camera_controles(Event &e) {
+	void geg::App::update_camera_controls(Event &e) {
 		Dispatcher::dispatch<KeyPressedEvent>(e, [&](const KeyPressedEvent &event) {
 			auto key = event.key_code();
 
@@ -107,16 +107,16 @@ namespace geg {
 		while (is_running) {
 			Timer::update();
 			auto [mouse_x, mouse_y] = get_mouse_pos();
-			auto is_pressed = is_button_pressed(input::MOUSE_BUTTON_MIDDLE);
+			const auto is_pressed = is_button_pressed(input::MOUSE_BUTTON_MIDDLE);
 
 			if (is_pressed)
 				glfwSetInputMode(m_window->raw_pointer, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 			else
 				glfwSetInputMode(m_window->raw_pointer, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
-			m_camera_controller.update(Timer::dellta(), {mouse_x, mouse_y}, is_pressed);
+			m_camera_controller.update(Timer::delta(), {mouse_x, mouse_y}, is_pressed);
 			m_window->poll_events();
-			m_renderer->render(Camera{m_camera_controller});
+			m_graphics_context->render(Camera{m_camera_controller});
 		}
 	}
 }		 // namespace geg

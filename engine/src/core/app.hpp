@@ -4,7 +4,7 @@
 #include "core/layer.hpp"
 #include "core/window.hpp"
 #include "events/events.hpp"
-#include "vulkan/renderer.hpp"
+#include "vulkan/graphics-context.hpp"
 #include "renderer/camera.hpp"
 #include "renderer/fps-camera.hpp"
 #include "pch.hpp"
@@ -30,11 +30,11 @@ namespace geg {
 		App &operator=(const App &) = delete;
 		~App();
 
-		bool is_key_pressed(int keyCode) { return glfwGetKey(m_window->raw_pointer, keyCode); }
+		bool is_key_pressed(int keyCode) const { return glfwGetKey(m_window->raw_pointer, keyCode); }
 
-		bool is_button_pressed(int button) { return glfwGetMouseButton(m_window->raw_pointer, button); }
+		bool is_button_pressed(int button) const { return glfwGetMouseButton(m_window->raw_pointer, button); }
 
-		std::pair<double, double> get_mouse_pos() {
+		std::pair<double, double> get_mouse_pos() const {
 			double x;
 			double y;
 			glfwGetCursorPos(m_window->raw_pointer, &x, &y);
@@ -55,10 +55,10 @@ namespace geg {
 		bool is_running = true;
 		std::shared_ptr<Window> m_window;
 		LayerStack m_layers;
-		std::unique_ptr<VulkanRenderer> m_renderer;
+		std::unique_ptr<VulkanContext> m_graphics_context;
 
 		// to be refactored
 		CameraPositioner_FirstPerson m_camera_controller;
-		void update_camera_controles(Event& e);
+		void update_camera_controls(Event& e);
 	};
 }		 // namespace geg

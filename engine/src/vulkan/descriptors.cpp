@@ -10,10 +10,10 @@ namespace geg::vulkan {
 
 	DescriptorAllocator::~DescriptorAllocator() {
 		for (auto &pool : m_free_pools)
-			m_device->logical_device.destroyDescriptorPool(pool);
+			m_device->vkdevice.destroyDescriptorPool(pool);
 
 		for (auto &pool : m_used_pools)
-			m_device->logical_device.destroyDescriptorPool(pool);
+			m_device->vkdevice.destroyDescriptorPool(pool);
 	}
 
 	vk::DescriptorPool DescriptorAllocator::get_free_pool() {
@@ -27,7 +27,7 @@ namespace geg::vulkan {
 				sizes.push_back({type, uint32_t(num * count)});
 			}
 
-			auto new_pool = m_device->logical_device.createDescriptorPool({
+			auto new_pool = m_device->vkdevice.createDescriptorPool({
 					.maxSets = count,
 					.poolSizeCount = static_cast<uint32_t>(sizes.size()),
 					.pPoolSizes = sizes.data(),
@@ -48,7 +48,7 @@ namespace geg::vulkan {
 		if (!m_current_pool.has_value()) { m_current_pool = get_free_pool(); }
 
 		try {
-			return m_device->logical_device
+			return m_device->vkdevice
 					.allocateDescriptorSets({
 							.descriptorPool = m_current_pool.value(),
 							.descriptorSetCount = 1,
@@ -57,7 +57,7 @@ namespace geg::vulkan {
 					.front();
 		} catch (vk::FragmentedPoolError) {
 			m_current_pool = get_free_pool();
-			return m_device->logical_device
+			return m_device->vkdevice
 					.allocateDescriptorSets({
 							.descriptorPool = m_current_pool.value(),
 							.descriptorSetCount = 1,
@@ -67,7 +67,7 @@ namespace geg::vulkan {
 					.front();
 		} catch (vk::OutOfPoolMemoryError) {
 			m_current_pool = get_free_pool();
-			return m_device->logical_device
+			return m_device->vkdevice
 					.allocateDescriptorSets({
 							.descriptorPool = m_current_pool.value(),
 							.descriptorSetCount = 1,
@@ -83,7 +83,7 @@ namespace geg::vulkan {
 
 	void DescriptorAllocator::reset_pools() {
 		for (auto &pool : m_used_pools) {
-			m_device->logical_device.resetDescriptorPool(pool);
+			m_device->vkdevice.resetDescriptorPool(pool);
 			m_free_pools.push_back(pool);
 		}
 		m_used_pools.clear();
@@ -98,7 +98,7 @@ namespace geg::vulkan {
 
 	DescriptorLayoutCache::~DescriptorLayoutCache() {
 		for (auto &[_, layout] : layout_cache) {
-			m_device->logical_device.destroyDescriptorSetLayout(layout);
+			m_device->vkdevice.destroyDescriptorSetLayout(layout);
 		}
 	}
 
@@ -137,7 +137,7 @@ namespace geg::vulkan {
 			return (*it).second;
 		} else {
 			// create a new one (not found)
-			auto layout = m_device->logical_device.createDescriptorSetLayout(*info);
+			auto layout = m_device->vkdevice.createDescriptorSetLayout(*info);
 
 			// add to cache
 			layout_cache[layout_info] = layout;
@@ -280,7 +280,7 @@ namespace geg::vulkan {
 		for (VkWriteDescriptorSet &w : writes) {
 			w.dstSet = set.value();
 		}
-		auto device = m_alloc->m_device->logical_device;
+		auto device = m_alloc->m_device->vkdevice;
 		device.updateDescriptorSets(writes.size(), writes.data(), 0, nullptr);
 
 		return std::pair(set.value(), layout);
