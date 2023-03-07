@@ -35,7 +35,7 @@ namespace geg::vulkan {
 			m_extent = surface_capabilities.currentExtent;
 		}
 
-		m_present_mode = vk::PresentModeKHR::eFifo;
+		m_present_mode = vk::PresentModeKHR::eMailbox;
 
 		m_transform =
 				(surface_capabilities.supportedTransforms & vk::SurfaceTransformFlagBitsKHR::eIdentity) ?
@@ -53,12 +53,10 @@ namespace geg::vulkan {
 						vk::CompositeAlphaFlagBitsKHR::eInherit :
 						vk::CompositeAlphaFlagBitsKHR::eOpaque;
 
-		uint32_t image_count = std::clamp(
+		m_min_image_count = std::clamp(
 				surface_capabilities.minImageCount + 1,
 				surface_capabilities.minImageCount,
 				surface_capabilities.maxImageCount);
-
-		m_images.resize(image_count);
 
 		create_swapchain();
 	}
@@ -88,7 +86,7 @@ namespace geg::vulkan {
 		m_extent = new_extent;
 		auto new_swapchain = m_device->vkdevice.createSwapchainKHR({
 				.surface = m_device->surface,
-				.minImageCount = static_cast<uint32_t>(m_images.size()),
+				.minImageCount = m_min_image_count,
 				.imageFormat = m_surface_format.format,
 				.imageColorSpace = m_surface_format.colorSpace,
 				.imageExtent = m_extent,
@@ -106,11 +104,12 @@ namespace geg::vulkan {
 		swapchain = new_swapchain;
 
 		// clear old image views
-		for (auto& image : m_images) {
-			m_device->vkdevice.destroyImageView(image.view);
-		}
+		if (!m_images.empty())
+			for (auto& image : m_images)
+				m_device->vkdevice.destroyImageView(image.view);
 
 		std::vector<vk::Image> images = m_device->vkdevice.getSwapchainImagesKHR(swapchain);
+		m_images.resize(images.size()); // resize local images to match swapchain images
 		int i = 0;
 		for (auto& image : images) {
 			vk::ImageView image_view = m_device->vkdevice.createImageView({

@@ -6,6 +6,7 @@
 #include "vulkan/renderer.hpp"
 #include "core/time.hpp"
 #include "core/input.hpp"
+#include "imgui.h"
 
 namespace geg {
 	App::App() {
@@ -113,6 +114,16 @@ namespace geg {
 				glfwSetInputMode(m_window->raw_pointer, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 			else
 				glfwSetInputMode(m_window->raw_pointer, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+
+			auto flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoCollapse |
+									 ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+			const ImGuiViewport *main_viewport = ImGui::GetMainViewport();
+			ImGui::SetNextWindowPos(
+					ImVec2(main_viewport->WorkPos.x, main_viewport->WorkPos.y));
+			ImGui::Begin("stats", nullptr, flags);
+			ImGui::Text("Frame: %lu", Timer::frame_count());
+			ImGui::Text("Fps: %i", Timer::fps());
+			ImGui::End();
 
 			m_camera_controller.update(Timer::delta(), {mouse_x, mouse_y}, is_pressed);
 			m_window->poll_events();

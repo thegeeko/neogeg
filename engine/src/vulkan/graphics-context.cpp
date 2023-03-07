@@ -85,11 +85,6 @@ namespace geg {
 	void VulkanContext::render(const Camera& camera) {
 		if (m_current_dimensions.first == 0 || m_current_dimensions.second == 0) return;
 
-		const auto res = m_device->vkdevice.waitForFences(
-				m_swapchain_image_fences[m_current_image_index], false, UINT64_MAX);
-		GEG_CORE_ASSERT(res == vk::Result::eSuccess, "Fence timeout")
-		m_device->vkdevice.resetFences(m_swapchain_image_fences[m_current_image_index]);
-
 		if (should_resize_swapchain) {
 			m_device->vkdevice.waitIdle();
 			m_swapchain->recreate();
@@ -113,6 +108,11 @@ namespace geg {
 			m_current_image_index = next_img_res.value;
 		else
 			GEG_CORE_ASSERT(false, "unknown error when acquiring next image on swapchain")
+
+		const auto res = m_device->vkdevice.waitForFences(
+				m_swapchain_image_fences[m_current_image_index], false, UINT64_MAX);
+		GEG_CORE_ASSERT(res == vk::Result::eSuccess, "Fence timeout")
+		m_device->vkdevice.resetFences(m_swapchain_image_fences[m_current_image_index]);
 
 		auto cmd = m_command_buffers[m_current_image_index];
 		cmd.begin(vk::CommandBufferBeginInfo{});
