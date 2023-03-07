@@ -50,6 +50,8 @@ namespace geg::vulkan {
 	void Renderer::cleanup_framebuffers() {
 		for (auto& fb : m_framebuffers)
 			m_device->vkdevice.destroyFramebuffer(fb);
+
+		m_framebuffers.clear();
 	}
 
 	void Renderer::resize(std::optional<DepthResources> depth_resources) {

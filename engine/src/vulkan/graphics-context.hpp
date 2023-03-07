@@ -20,6 +20,7 @@ namespace geg {
 		void render(const Camera& camera);
 		bool resize(const WindowResizeEvent& new_dim) {
 			m_current_dimensions = {new_dim.width(), new_dim.height()};
+			should_resize_swapchain = true;
 
 			return false;
 		};

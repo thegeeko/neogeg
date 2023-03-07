@@ -85,31 +85,34 @@ namespace geg {
 	void VulkanContext::render(const Camera& camera) {
 		if (m_current_dimensions.first == 0 || m_current_dimensions.second == 0) return;
 
-		if (should_resize_swapchain) {
-			// @TODO check if u need to recreate the fences swapchain images count might change
-			const auto res = m_device->vkdevice.waitForFences(m_swapchain_image_fences, true, UINT64_MAX);
-			GEG_CORE_ASSERT(res == vk::Result::eSuccess, "Fence timeout")
-			m_device->vkdevice.resetFences(m_swapchain_image_fences);
+		const auto res = m_device->vkdevice.waitForFences(
+				m_swapchain_image_fences[m_current_image_index], false, UINT64_MAX);
+		GEG_CORE_ASSERT(res == vk::Result::eSuccess, "Fence timeout")
+		m_device->vkdevice.resetFences(m_swapchain_image_fences[m_current_image_index]);
 
+		if (should_resize_swapchain) {
+			m_device->vkdevice.waitIdle();
 			m_swapchain->recreate();
 			create_depth_resources();
-		} else {
-			const auto res = m_device->vkdevice.waitForFences(
-					m_swapchain_image_fences[m_current_image_index], false, UINT64_MAX);
-			GEG_CORE_ASSERT(res == vk::Result::eSuccess, "Fence timeout")
-			m_device->vkdevice.resetFences(m_swapchain_image_fences[m_current_image_index]);
+			m_clear_renderer->resize(vulkan::DepthResources{
+					.format = depth_format,
+					.image_view = m_depth_image_view.get(),
+			});
+			m_imgui_renderer->resize();
+			m_present_renderer->resize();
+			should_resize_swapchain = false;
 		}
 
-		auto res = m_device->vkdevice.acquireNextImageKHR(
+		auto next_img_res = m_device->vkdevice.acquireNextImageKHR(
 				m_swapchain->swapchain, UINT64_MAX, m_present_semaphore);
 
-		if (res.result == vk::Result::eSuboptimalKHR) {
+		if (next_img_res.result == vk::Result::eSuboptimalKHR) {
 			should_resize_swapchain = true;
-			m_current_image_index = res.value;
-		} else if (res.result == vk::Result::eSuccess)
-			m_current_image_index = res.value;
+			m_current_image_index = next_img_res.value;
+		} else if (next_img_res.result == vk::Result::eSuccess)
+			m_current_image_index = next_img_res.value;
 		else
-			GEG_CORE_ASSERT(false, "unkonwn error when aquiring next image on swapchain")
+			GEG_CORE_ASSERT(false, "unknown error when acquiring next image on swapchain")
 
 		auto cmd = m_command_buffers[m_current_image_index];
 		cmd.begin(vk::CommandBufferBeginInfo{});
