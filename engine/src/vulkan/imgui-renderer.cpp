@@ -89,7 +89,7 @@ namespace geg::vulkan {
 				{vk::DescriptorType::eStorageBufferDynamic, 2000},
 				{vk::DescriptorType::eInputAttachment, 2000}};
 
-		constexpr vk::DescriptorPoolCreateInfo pool_info = {
+		const vk::DescriptorPoolCreateInfo pool_info = {
 				.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
 				.maxSets = 2000 * IM_ARRAYSIZE(pool_sizes),
 				.poolSizeCount = static_cast<uint32_t>(IM_ARRAYSIZE(pool_sizes)),
