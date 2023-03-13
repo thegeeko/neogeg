@@ -63,7 +63,7 @@ target_link_libraries(geg PUBLIC VulkanMemoryAllocator)
 target_link_libraries(geg PUBLIC imgui)
 target_link_libraries(geg PUBLIC assimp)
 
-# vma-hpp
+# header only libs
 target_include_directories(geg PUBLIC "lib/vma-hpp/include")
 
 # pre compiled header

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pch.hpp"
+
 #include "core/layer-stack.hpp"
 #include "core/layer.hpp"
 #include "core/window.hpp"
@@ -7,10 +9,9 @@
 #include "vulkan/graphics-context.hpp"
 #include "renderer/camera.hpp"
 #include "renderer/fps-camera.hpp"
-#include "pch.hpp"
+#include "logger.hpp"
 
 namespace geg {
-
 	struct AppInfo {
 		std::string name = "Geg App";
 		uint32_t width = 1280;
@@ -30,8 +31,9 @@ namespace geg {
 		~App();
 
 		bool is_key_pressed(int keyCode) const { return glfwGetKey(m_window->raw_pointer, keyCode); }
-
-		bool is_button_pressed(int button) const { return glfwGetMouseButton(m_window->raw_pointer, button); }
+		bool is_button_pressed(int button) const {
+			return glfwGetMouseButton(m_window->raw_pointer, button);
+		}
 
 		std::pair<double, double> get_mouse_pos() const {
 			double x;
@@ -45,12 +47,19 @@ namespace geg {
 		void detach(Layer *layer) { m_layers.popLayer(layer); };
 
 		void run();
+		static void init_logger();
 
 	private:
 		void init();
 		bool close(const WindowCloseEvent &e);
+		bool pause(const KeyPressedEvent &e) {
+			if (e.key_code() == input::KEY_C) paused = !paused;
+
+			return false;
+		};
 		void event_handler(Event &e);
 
+		bool paused = false;
 		bool is_running = true;
 		std::shared_ptr<Window> m_window;
 		LayerStack m_layers;
@@ -58,6 +67,7 @@ namespace geg {
 
 		// to be refactored
 		CameraPositioner_FirstPerson m_camera_controller;
-		void update_camera_controls(Event& e);
+		void update_camera_controls(Event &e);
 	};
+
 }		 // namespace geg

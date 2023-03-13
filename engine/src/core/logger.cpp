@@ -2,16 +2,20 @@
 
 namespace geg {
 
-std::shared_ptr<spdlog::logger> Logger::coreLogger;
-std::shared_ptr<spdlog::logger> Logger::appLogger;
+	std::shared_ptr<spdlog::logger> Logger::core_logger;
+	std::shared_ptr<spdlog::logger> Logger::app_logger;
+	std::vector<spdlog::sink_ptr> Logger::sinks;
 
-void Logger::init() {
-  spdlog::set_pattern("%^[%T] %n: %v%$");
-  coreLogger = spdlog::stderr_color_mt("geg");
-  coreLogger->set_level(spdlog::level::trace);
+	void Logger::init() {
+		auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+		sinks.push_back(console_sink);
 
-  appLogger = spdlog::stderr_color_mt("app");
-  appLogger->set_level(spdlog::level::trace);
-}
+		spdlog::set_pattern("%^[%T] %n: %v%$");
+		core_logger = std::make_shared<spdlog::logger>("core", begin(sinks), end(sinks));
+		core_logger->set_level(spdlog::level::trace);
 
-} // namespace geg
+		app_logger = std::make_shared<spdlog::logger>("core", begin(sinks), end(sinks));
+		app_logger->set_level(spdlog::level::trace);
+	}
+
+}		 // namespace geg

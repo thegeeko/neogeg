@@ -10,15 +10,11 @@
 
 namespace geg {
 	App::App() {
-		Logger::init();
 		m_window = std::make_shared<Window>(AppInfo{}, GEG_BIND_CB(event_handler));
-
 		init();
 	}
 
 	App::App(const AppInfo &info) {
-		Logger::init();
-
 		m_window = std::make_shared<Window>(info, GEG_BIND_CB(event_handler));
 		init();
 	}
@@ -34,6 +30,10 @@ namespace geg {
 				CameraPositioner_FirstPerson(glm::vec3(0.f), {0.f, 0.f, -1.f}, {0.f, 1.f, 0.f});
 	}
 
+	void App::init_logger() {
+		Logger::init();
+	}
+
 	bool App::close(const WindowCloseEvent &e) {
 		is_running = false;
 		return true;
@@ -41,6 +41,7 @@ namespace geg {
 
 	void App::event_handler(Event &e) {
 		Dispatcher::dispatch<WindowCloseEvent>(e, GEG_BIND_CB(close));
+		Dispatcher::dispatch<KeyPressedEvent>(e, GEG_BIND_CB(pause));
 		Dispatcher::dispatch<WindowResizeEvent>(e, GEG_BIND_CB(m_graphics_context->resize));
 		Dispatcher::dispatch<KeyPressedEvent>(e, GEG_BIND_CB(m_graphics_context->toggle_ui));
 
@@ -109,7 +110,7 @@ namespace geg {
 		while (is_running) {
 			Timer::update();
 			auto [mouse_x, mouse_y] = get_mouse_pos();
-			const auto is_pressed = is_button_pressed(input::MOUSE_BUTTON_MIDDLE);
+			const auto is_pressed = is_button_pressed(input::MOUSE_BUTTON_4);
 
 			if (is_pressed)
 				glfwSetInputMode(m_window->raw_pointer, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -118,17 +119,19 @@ namespace geg {
 
 			auto flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoCollapse |
 									 ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+
 			const ImGuiViewport *main_viewport = ImGui::GetMainViewport();
-			ImGui::SetNextWindowPos(
-					ImVec2(main_viewport->WorkPos.x, main_viewport->WorkPos.y));
+			ImGui::SetNextWindowPos(ImVec2(main_viewport->WorkPos.x, main_viewport->WorkPos.y));
 			ImGui::Begin("stats", nullptr, flags);
 			ImGui::Text("Frame: %lu", Timer::frame_count());
 			ImGui::Text("Fps: %i", Timer::fps());
 			ImGui::End();
 
-			m_camera_controller.update(Timer::delta(), {mouse_x, mouse_y}, is_pressed);
 			m_window->poll_events();
-			m_graphics_context->render(Camera{m_camera_controller});
+			if (!paused) {
+				m_camera_controller.update(Timer::delta(), {mouse_x, mouse_y}, is_pressed);
+				m_graphics_context->render(Camera{m_camera_controller});
+			}
 		}
 	}
 }		 // namespace geg

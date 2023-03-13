@@ -131,7 +131,7 @@ namespace geg {
 		m_device->vkdevice.resetFences(m_swapchain_image_fences[m_current_image_index]);
 
 		m_mesh_renderer->projection = glm::perspective(
-				45.f, (float)m_current_dimensions.first / (float)m_current_dimensions.second, 0.1f, 100.f);
+				glm::radians(m_debug_ui_settings.fov), (float)m_current_dimensions.first / (float)m_current_dimensions.second, 0.1f, 100.f);
 		auto cmd = m_command_buffers[m_current_image_index];
 		cmd.begin(vk::CommandBufferBeginInfo{});
 		m_clear_renderer->fill_commands(cmd, camera, m_current_image_index);
@@ -184,6 +184,7 @@ namespace geg {
 
 		ImGui::Spacing();
 		if (ImGui::CollapsingHeader("settings: ", ImGuiTreeNodeFlags_DefaultOpen)) {
+			ImGui::DragFloat("Fov", &m_debug_ui_settings.fov, 0.1f, 0.1f, 180.f);
 			if (ImGui::BeginCombo("Present Mode: ", m_debug_ui_settings.present_mode_name.c_str())) {
 				if (ImGui::Selectable("Fifo - Vsync")) {
 					m_debug_ui_settings.present_mode = vk::PresentModeKHR::eFifo;

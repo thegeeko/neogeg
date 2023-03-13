@@ -47,6 +47,7 @@ namespace geg {
 			bool mesh_renderer = true;
 			vk::PresentModeKHR present_mode = vk::PresentModeKHR::eMailbox;
 			std::string present_mode_name = "Fifo - VSync";
+			float fov = 45.0f;
 		} m_debug_ui_settings = {};
 
 		std::shared_ptr<Window> m_window;
