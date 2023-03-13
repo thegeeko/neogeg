@@ -54,16 +54,16 @@ namespace geg {
 
 	uint64_t Timer::now() {
 		return time;
-	};
+	}
 	uint64_t Timer::now_ms() {
 		return time_ms;
-	};
+	}
 	double Timer::geg_now() {
 		return geg_time;
-	};
+	}
 	double Timer::geg_now_ms() {
 		return geg_time_ms;
-	};
+	}
 	double Timer::delta() {
 		return delta_time;
 	}
@@ -71,7 +71,7 @@ namespace geg {
 		return s_frame_count;
 	}
 	uint32_t Timer::fps() {
-		return static_cast<uint32_t>(1000 / static_cast<float>(delta_time));
-	};
+		return static_cast<uint32_t>(1 / static_cast<float>(delta_time));
+	}
 
 }		 // namespace geg

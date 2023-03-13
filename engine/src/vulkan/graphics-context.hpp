@@ -10,6 +10,7 @@
 
 #include "vulkan/device.hpp"
 #include "vulkan/swapchain.hpp"
+#include "mesh-renderer.hpp"
 
 namespace geg {
 	class VulkanContext {
@@ -41,6 +42,7 @@ namespace geg {
 		vk::UniqueImageView m_depth_image_view;
 
 		std::unique_ptr<vulkan::ClearRenderer> m_clear_renderer;
+		std::unique_ptr<vulkan::MeshRenderer> m_mesh_renderer;
 		std::unique_ptr<vulkan::ImguiRenderer> m_imgui_renderer;
 		std::unique_ptr<vulkan::PresentRenderer> m_present_renderer;
 

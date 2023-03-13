@@ -1,10 +1,13 @@
 #include "graphics-context.hpp"
 
+#include <utility>
+
 #include "vulkan/renderer.hpp"
 #include "vulkan/swapchain.hpp"
+#include "glm/gtc/matrix_transform.hpp"
 
 namespace geg {
-	VulkanContext::VulkanContext(std::shared_ptr<Window> window): m_window(window) {
+	VulkanContext::VulkanContext(std::shared_ptr<Window> window): m_window(std::move(window)) {
 		m_device = std::make_shared<vulkan::Device>(m_window);
 		m_swapchain = std::make_shared<vulkan::Swapchain>(m_window, m_device);
 		m_current_dimensions = m_window->dimensions();
@@ -34,7 +37,8 @@ namespace geg {
 
 		m_clear_renderer =
 				std::make_unique<vulkan::ClearRenderer>(m_device, m_swapchain, depth_resources);
-
+		m_mesh_renderer =
+				std::make_unique<vulkan::MeshRenderer>(m_device, m_swapchain, depth_resources);
 		m_imgui_renderer = std::make_unique<vulkan::ImguiRenderer>(m_device, m_swapchain);
 		m_present_renderer = std::make_unique<vulkan::PresentRenderer>(m_device, m_swapchain);
 	}
@@ -89,12 +93,17 @@ namespace geg {
 			m_device->vkdevice.waitIdle();
 			m_swapchain->recreate();
 			create_depth_resources();
-			m_clear_renderer->resize(vulkan::DepthResources{
+
+			const vulkan::DepthResources& new_dpeth = vulkan::DepthResources{
 					.format = depth_format,
 					.image_view = m_depth_image_view.get(),
-			});
+			};
+
+			m_clear_renderer->resize(new_dpeth);
+			m_mesh_renderer->resize(new_dpeth);
 			m_imgui_renderer->resize();
 			m_present_renderer->resize();
+
 			should_resize_swapchain = false;
 		}
 
@@ -114,9 +123,12 @@ namespace geg {
 		GEG_CORE_ASSERT(res == vk::Result::eSuccess, "Fence timeout")
 		m_device->vkdevice.resetFences(m_swapchain_image_fences[m_current_image_index]);
 
+		m_mesh_renderer->projection = glm::perspective(
+				45.f, (float)m_current_dimensions.first / (float)m_current_dimensions.second, 0.1f, 100.f);
 		auto cmd = m_command_buffers[m_current_image_index];
 		cmd.begin(vk::CommandBufferBeginInfo{});
 		m_clear_renderer->fill_commands(cmd, camera, m_current_image_index);
+		m_mesh_renderer->fill_commands(cmd, camera, m_current_image_index);
 		m_imgui_renderer->fill_commands(cmd, camera, m_current_image_index);
 		m_present_renderer->fill_commands(cmd, camera, m_current_image_index);
 		cmd.end();

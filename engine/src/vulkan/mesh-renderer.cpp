@@ -1,154 +1,166 @@
-//#include "vulkan/mesh-renderer.hpp"
-//
-//#define VMA_IMPLEMENTATION
-//#include "vk_mem_alloc.hpp"
-//
-//#include "vulkan/device.hpp"
-//#include "imgui.h"
-//
-//#include "glm/gtc/matrix_transform.hpp"
-//
-//namespace geg {
-//	VulkanRenderer::VulkanRenderer(std::shared_ptr<Window> window) {
-//		GEG_CORE_INFO("init vulkan");
-//
-//		m_window = window;
-//		m_current_dimintaions = m_window->dimensions();
-//
-//		m_device = std::make_shared<vulkan::Device>(m_window);
-//
-//		m_swapchain = std::make_shared<vulkan::Swapchain>(m_window, m_device);
-//		m_renderpass = std::make_shared<vulkan::DepthColorRenderpass>(m_device, m_swapchain);
-//		m_debug_ui = std::make_shared<vulkan::DebugUi>(m_window, m_device, m_swapchain);
-//		m_debug_ui->new_frame();
-//
-//		tmp_shader =
-//				std::make_shared<vulkan::Shader>(m_device, fs::path("./assets/shaders/flat.glsl"), "flat");
-//		tmp_pipeline =
-//				std::make_shared<vulkan::GraphicsPipeline>(m_device, m_renderpass, *tmp_shader.get());
-//
-//		m_present_semaphore = m_device->vkdevice.createSemaphore(vk::SemaphoreCreateInfo{});
-//		m_render_semaphore = m_device->vkdevice.createSemaphore(vk::SemaphoreCreateInfo{});
-//		m_render_fence = m_device->vkdevice.createFence({
-//				.flags = vk::FenceCreateFlagBits::eSignaled,
-//		});
-//
-//		m_command_buffer = m_device->vkdevice
-//													 .allocateCommandBuffers({
-//															 .commandPool = m_device->command_pool,
-//															 .level = vk::CommandBufferLevel::ePrimary,
-//															 .commandBufferCount = 1,
-//													 })
-//													 .front();
-//
-//		m = new vulkan::Mesh("assets/meshes/teapot.gltf", m_device);
-//	}
-//
-//	VulkanRenderer::~VulkanRenderer() {
-//		m_device->vkdevice.waitIdle();
-//
-//		m_device->vkdevice.destroySemaphore(m_render_semaphore);
-//		m_device->vkdevice.destroySemaphore(m_present_semaphore);
-//		m_device->vkdevice.destroyFence(m_render_fence);
-//
-//		GEG_CORE_WARN("destroying vulkan");
-//	}
-//
-//	bool VulkanRenderer::resize(WindowResizeEvent dim) {
-//		m_current_dimintaions = {dim.width(), dim.height()};
-//
-//		return false;
-//	}
-//
-//	void VulkanRenderer::render(Camera camera) {
-//		ImGui::ShowMetricsWindow();
-//
-//		ImGui::Begin("color");
-//		ImGui::ColorPicker4("color", &push.color[0]);
-//		ImGui::End();
-//
-//		if (m_current_dimintaions.first == 0 || m_current_dimintaions.second == 0) { return; }
-//
-//		push.mvp = glm::perspective(
-//				45.f, (float)m_current_dimintaions.first / m_current_dimintaions.second, 0.1f, 100.f) * camera.view_matrix();
-//
-//		m_device->vkdevice.waitForFences(m_render_fence, true, UINT64_MAX);
-//		m_device->vkdevice.resetFences(m_render_fence);
-//
-//		if (m_swapchain->should_recreate(m_current_dimintaions)) {
-//			m_swapchain->recreate();
-//			m_renderpass->recreate_resources();
-//			m_debug_ui->resize(m_current_dimintaions);
-//		}
-//
-//		auto res = m_device->vkdevice.acquireNextImageKHR(
-//				m_swapchain->swapchain, UINT64_MAX, m_present_semaphore);
-//
-//		if (res.result != vk::Result::eSuccess) __debugbreak();
-//
-//		m_curr_index = res.value;
-//
-//		m_command_buffer.reset();
-//
-//		m_command_buffer.begin(vk::CommandBufferBeginInfo{});
-//		m_renderpass->begin(m_command_buffer, m_curr_index);
-//		m_command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, tmp_pipeline->pipeline);
-//		m_command_buffer.setViewport(
-//				0,
-//				vk::Viewport{
-//						.x = 0,
-//						.y = 0,
-//						.width = (float)m_swapchain->extent().width,
-//						.height = (float)m_swapchain->extent().height,
-//						.minDepth = 0,
-//						.maxDepth = 1,
-//				});
-//		m_command_buffer.setScissor(
-//				0,
-//				vk::Rect2D{
-//						.offset = 0,
-//						.extent = m_swapchain->extent(),
-//				});
-//		m_command_buffer.pushConstants(
-//				tmp_pipeline->pipeline_layout,
-//				vk::ShaderStageFlagBits::eAllGraphics,
-//				0,
-//				sizeof(Push),
-//				&push);
-//		m_command_buffer.bindDescriptorSets(
-//				vk::PipelineBindPoint::eGraphics,
-//				tmp_pipeline->pipeline_layout,
-//				0,
-//				1,
-//				&m->descriptor_set,
-//				0,
-//				nullptr);
-//		m_command_buffer.draw(m->index_count(), 1, 0, 0);
-//		m_command_buffer.endRenderPass();
-//		m_command_buffer.end();
-//
-//		auto debug_cmd = m_debug_ui->render(m_curr_index);
-//
-//		std::array<vk::CommandBuffer, 2> cmds = {m_command_buffer, debug_cmd};
-//
-//		vk::PipelineStageFlags pipeflg = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-//		vk::SubmitInfo subinfo{
-//				.waitSemaphoreCount = 1,
-//				.pWaitSemaphores = &m_present_semaphore,
-//				.pWaitDstStageMask = &pipeflg,
-//				.commandBufferCount = static_cast<uint32_t>(cmds.size()),
-//				.pCommandBuffers = cmds.data(),
-//				.signalSemaphoreCount = 1,
-//				.pSignalSemaphores = &m_render_semaphore,
-//		};
-//		m_device->graphics_queue.submit(subinfo, m_render_fence);
-//
-//		m_device->graphics_queue.presentKHR(vk::PresentInfoKHR{
-//				.waitSemaphoreCount = 1,
-//				.pWaitSemaphores = &m_render_semaphore,
-//				.swapchainCount = 1,
-//				.pSwapchains = &m_swapchain->swapchain,
-//				.pImageIndices = &m_curr_index,
-//		});
-//	}
-//}		 // namespace geg
+#include "mesh-renderer.hpp"
+#include "glm/gtc/matrix_transform.hpp"
+#include "imgui.h"
+
+namespace geg::vulkan {
+
+	MeshRenderer::MeshRenderer(
+			std::shared_ptr<Device> device,
+			std::shared_ptr<Swapchain> swapchain,
+			DepthResources depth_resources):
+			Renderer(std::move(device), std::move(swapchain), depth_resources) {
+		init_pipeline();
+	}
+
+	MeshRenderer::~MeshRenderer() {
+		delete m;
+		m_device->vkdevice.destroyPipeline(m_pipeline);
+		m_device->vkdevice.destroyPipelineLayout(m_pipeline_layout);
+	}
+
+	void MeshRenderer::fill_commands(
+			const vk::CommandBuffer& cmd, const Camera& camera, uint32_t frame_index) {
+		begin(cmd, frame_index);
+
+		ImGui::Begin("color");
+		ImGui::ColorPicker4("color", &push.color[0]);
+		ImGui::End();
+
+		push.mvp = projection * camera.view_matrix();
+
+		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, m_pipeline);
+		cmd.setViewport(
+				0,
+				vk::Viewport{
+						.x = 0,
+						.y = 0,
+						.width = (float)m_swapchain->extent().width,
+						.height = (float)m_swapchain->extent().height,
+						.minDepth = 0,
+						.maxDepth = 1,
+				});
+		cmd.setScissor(
+				0,
+				vk::Rect2D{
+						.offset = {0},
+						.extent = m_swapchain->extent(),
+				});
+		cmd.pushConstants(
+				m_pipeline_layout, vk::ShaderStageFlagBits::eAllGraphics, 0, sizeof(typeof(push)), &push);
+		cmd.bindDescriptorSets(
+				vk::PipelineBindPoint::eGraphics, m_pipeline_layout, 0, 1, &m->descriptor_set, 0, nullptr);
+		cmd.draw(m->index_count(), 1, 0, 0);
+
+		cmd.endRenderPass();
+	}
+
+	void MeshRenderer::init_pipeline() {
+		auto vert_shader_stage = m_shader.vert_stage_info;
+		auto frag_shader_stage = m_shader.frag_stage_info;
+
+		auto vertex_input_info = vk::PipelineVertexInputStateCreateInfo{};
+
+		auto input_assembly = vk::PipelineInputAssemblyStateCreateInfo{
+				.topology = vk::PrimitiveTopology::eTriangleList,
+				.primitiveRestartEnable = VK_FALSE,
+		};
+
+		vk::PipelineViewportStateCreateInfo viewport_state{
+				.viewportCount = 1,
+				.scissorCount = 1,
+		};
+
+		std::array<vk::DynamicState, 2> dynamic_states = {
+				vk::DynamicState::eViewport,
+				vk::DynamicState::eScissor,
+		};
+
+		vk::PipelineDynamicStateCreateInfo dynamic_state{
+				.dynamicStateCount = static_cast<uint32_t>(dynamic_states.size()),
+				.pDynamicStates = dynamic_states.data(),
+		};
+
+		auto rasterizer = vk::PipelineRasterizationStateCreateInfo{
+				.depthClampEnable = VK_FALSE,
+				.rasterizerDiscardEnable = VK_FALSE,
+				.polygonMode = vk::PolygonMode::eFill,
+				.cullMode = vk::CullModeFlagBits::eNone,
+				.frontFace = vk::FrontFace::eClockwise,
+				.depthBiasEnable = VK_FALSE,
+				.lineWidth = 1.0f,
+		};
+
+		auto multisampling = vk::PipelineMultisampleStateCreateInfo{
+				.rasterizationSamples = vk::SampleCountFlagBits::e1,
+				.sampleShadingEnable = VK_FALSE,
+				.minSampleShading = 1.0f,
+		};
+
+		auto depth_stencil = vk::PipelineDepthStencilStateCreateInfo{
+				.depthTestEnable = VK_TRUE,
+				.depthWriteEnable = VK_TRUE,
+				.depthCompareOp = vk::CompareOp::eLess,
+				.depthBoundsTestEnable = VK_FALSE,
+				.stencilTestEnable = VK_FALSE,
+		};
+
+		auto color_blend_attachment = vk::PipelineColorBlendAttachmentState{
+				.blendEnable = VK_FALSE,
+				.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+													vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA,
+		};
+
+		auto color_blending = vk::PipelineColorBlendStateCreateInfo{
+				.logicOpEnable = VK_FALSE,
+				.attachmentCount = 1,
+				.pAttachments = &color_blend_attachment,
+		};
+
+		vk::PushConstantRange push_range{
+				.stageFlags = vk::ShaderStageFlagBits::eAllGraphics,
+				.offset = 0,
+				.size = sizeof(glm::vec4) + sizeof(glm::mat4),
+		};
+
+		// @TODO: automate this
+		auto layout = m_device->build_descriptor()
+											.bind_buffer_layout(
+													0, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex)
+											.bind_buffer_layout(
+													1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex)
+											.build_layout()
+											.value();
+
+		m_pipeline_layout = m_device->vkdevice.createPipelineLayout(vk::PipelineLayoutCreateInfo{
+				.setLayoutCount = 1,
+				.pSetLayouts = &layout,
+				.pushConstantRangeCount = 1,
+				.pPushConstantRanges = &push_range,
+		});
+
+		auto result = m_device->vkdevice.createGraphicsPipeline(
+				{},
+				{
+						.stageCount = 2,
+						.pStages = std::array{vert_shader_stage, frag_shader_stage}.data(),
+						.pVertexInputState = &vertex_input_info,
+						.pInputAssemblyState = &input_assembly,
+						.pViewportState = &viewport_state,
+						.pRasterizationState = &rasterizer,
+						.pMultisampleState = &multisampling,
+						.pDepthStencilState = &depth_stencil,
+						.pColorBlendState = &color_blending,
+						.pDynamicState = &dynamic_state,
+						.layout = m_pipeline_layout,
+						.renderPass = m_renderpass,
+						.subpass = 0,
+						.basePipelineHandle = vk::Pipeline{},
+						.basePipelineIndex = -1,
+				});
+
+		GEG_CORE_ASSERT(result.result == vk::Result::eSuccess, "Failed to create graphics pipeline!");
+
+		m_pipeline = result.value;
+	}
+
+}		 // namespace geg::vulkan

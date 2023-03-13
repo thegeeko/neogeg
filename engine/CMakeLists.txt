@@ -1,6 +1,13 @@
 
 # =============== deps ==============
-find_package(Vulkan REQUIRED shaderc_combined)
+find_package(Vulkan REQUIRED glslang SPIRV-Tools)
+
+#if (UNIX)
+#    find_library(SYS_SHADERC_LIB shaderc_combined REQUIRED)
+#    add_library(sys_shaderc STATIC IMPORTED)
+#    message(STATUS "Found shaderc_combined: ${SYS_SHADERC_LIB}")
+#    set_property(TARGET sys_shaderc PROPERTY IMPORTED_LOCATION ${SYS_SHADERC_LIB})
+#endif ()
 
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -23,31 +30,32 @@ add_subdirectory("lib/imgui")
 # =============== geg ==============
 # find all source files and headers
 file(
-	GLOB_RECURSE # recursive
-	GEG_SRC # variable to store the source files and headers
-	CONFIGURE_DEPENDS # make a dependency
-  RELATIVE
-	"${CMAKE_CURRENT_SOURCE_DIR}"
-  "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+        GLOB_RECURSE # recursive
+        GEG_SRC # variable to store the source files and headers
+        CONFIGURE_DEPENDS # make a dependency
+        RELATIVE
+        "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
 )
 
 file(
-	GLOB_RECURSE # recursive
-  GEG_HEADERS # variable to store the source files and headers
-	CONFIGURE_DEPENDS # make a dependency
-  RELATIVE
-	"${CMAKE_CURRENT_SOURCE_DIR}"
-  "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp"
+        GLOB_RECURSE # recursive
+        GEG_HEADERS # variable to store the source files and headers
+        CONFIGURE_DEPENDS # make a dependency
+        RELATIVE
+        "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp"
 )
 
 SETUP_GROUPS("${GEG_SRC}")
 SETUP_GROUPS("${GEG_HEADERS}")
 
-add_library(geg STATIC ${GEG_SRC} ${GEG_HEADERS} )
+add_library(geg STATIC ${GEG_SRC} ${GEG_HEADERS})
 
 # link dependencies
 target_link_libraries(geg PUBLIC Vulkan::Vulkan)
-target_link_libraries(geg PUBLIC Vulkan::shaderc_combined)
+target_link_libraries(geg PUBLIC Vulkan::glslang)
+target_link_libraries(geg PUBLIC Vulkan::SPIRV-Tools)
 target_link_libraries(geg PUBLIC spdlog::spdlog)
 target_link_libraries(geg PUBLIC glfw)
 target_link_libraries(geg PUBLIC glm)

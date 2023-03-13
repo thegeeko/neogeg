@@ -1,14 +1,17 @@
 #pragma once
 
+#include <glslang/Include/ResourceLimits.h>
 #include "geg-vulkan.hpp"
 #include "device.hpp"
 #include "utils/filesystem.hpp"
-#include "shaderc/shaderc.hpp"
 
 namespace geg::vulkan {
 	class Shader {
 	public:
-		Shader(std::shared_ptr<Device> device, const fs::path& shader_path, const std::string& shader_name);
+		Shader(
+				std::shared_ptr<Device> device,
+				const fs::path& shader_path,
+				const std::string& shader_name);
 		~Shader();
 
 		vk::ShaderModule vert_module;
@@ -21,5 +24,7 @@ namespace geg::vulkan {
 		std::string m_shader_path;
 		std::string m_shader_name;
 		std::string m_glsl_shader_src;
+
+		std::vector<uint32_t> compile_shader(std::string src, vk::ShaderStageFlags stage);
 	};
 }		 // namespace geg::vulkan

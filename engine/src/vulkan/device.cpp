@@ -249,12 +249,15 @@ namespace geg::vulkan {
 
 	Device::~Device() {
 		GEG_CORE_WARN("destroying vulkan device");
+		m_descriptor_layout_cache.reset();
+		m_descriptor_allocator.reset();
+		allocator.destroy();
 		vkdevice.destroyCommandPool(command_pool);
 		vkdevice.destroy();
 		instance.destroySurfaceKHR(surface);
 		if (m_debug_messenger_created) instance.destroyDebugUtilsMessengerEXT(m_debug_messenger);
 		instance.destroy();
-	};
+	}
 
 	void Device::single_time_command(std::function<void(vk::CommandBuffer)> lambda) {
 		auto command_buffer = vkdevice

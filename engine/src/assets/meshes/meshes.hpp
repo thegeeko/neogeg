@@ -17,7 +17,7 @@ namespace geg::vulkan {
 
 	class Mesh {
 	public:
-		Mesh(fs::path path, std::shared_ptr<Device> device);
+		Mesh(const fs::path& path, const std::shared_ptr<Device>& device);
 		~Mesh();
 
 		vk::DeviceSize size;
@@ -29,11 +29,9 @@ namespace geg::vulkan {
 
 		vk::Buffer buffer;
 		fs::path path() { return m_path; };
-		uint32_t index_count() { return (size - index_offset) / sizeof(uint32_t); };
+		uint32_t index_count() const { return (size - index_offset) / sizeof(uint32_t); };
 
 	private:
-		void processNodes(aiNode* node, const aiScene* scene);
-		void processMesh(aiMesh* mesh, const aiScene* scene);
 
 		std::shared_ptr<Device> m_device;
 		vma::Allocation m_alloc;

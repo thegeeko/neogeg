@@ -4,11 +4,12 @@
 #include "assimp/Importer.hpp"
 
 namespace geg::vulkan {
-	Mesh::Mesh(fs::path path, std::shared_ptr<Device> device) {
+	Mesh::Mesh(const fs::path& path, const std::shared_ptr<Device>& device) {
 		m_device = device;
 		Assimp::Importer importer;
 		const aiScene* scene = importer.ReadFile(
-				path.string(), 0 /*aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs*/);
+				path.string(),
+				0 /*aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs*/);
 
 		if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
 			GEG_CORE_ASSERT(false, " Error loadin model : ", importer.GetErrorString());
@@ -84,14 +85,14 @@ namespace geg::vulkan {
 
 		vk::DescriptorBufferInfo vertx_desc_buff{
 				.buffer = buffer,
-				.offset = vertex_offset, // 0
-				.range = vertex_size, // sizeof(Vertex) * vertices.size() 1152
+				.offset = vertex_offset,		// 0
+				.range = vertex_size,		 // sizeof(Vertex) * vertices.size() 1152
 		};
 
 		vk::DescriptorBufferInfo index_desc_buff{
 				.buffer = buffer,
-				.offset = index_offset, // 1152
-				.range = size - index_offset, // sizeof(indices[1]) * indices.size() 144
+				.offset = index_offset,		 // 1152
+				.range = size - index_offset,		 // sizeof(indices[1]) * indices.size() 144
 		};
 
 		auto [descriptor, layout] = device->build_descriptor()
@@ -114,5 +115,6 @@ namespace geg::vulkan {
 
 	Mesh::~Mesh() {
 		m_device->allocator.destroyBuffer(buffer, m_alloc);
+		GEG_CORE_WARN("Destroying mesh");
 	}
 }		 // namespace geg::vulkan
