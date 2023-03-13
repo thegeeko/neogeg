@@ -10,6 +10,7 @@ namespace geg {
 		GEG_CORE_ASSERT(init_status, "Failed to initialize GLFW");
 
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+		if (info.start_maximized) glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
 		raw_pointer = glfwCreateWindow(info.width, info.height, info.name.c_str(), nullptr, nullptr);
 
 		GEG_CORE_INFO("init window");
@@ -50,22 +51,23 @@ namespace geg {
 			win_data.events_cb(e);
 		});
 
-		glfwSetMouseButtonCallback(raw_pointer, [](GLFWwindow *window, int button, int action, int mods) {
-			auto cb = (*(WindowData *)glfwGetWindowUserPointer(window)).events_cb;
+		glfwSetMouseButtonCallback(
+				raw_pointer, [](GLFWwindow *window, int button, int action, int mods) {
+					auto cb = (*(WindowData *)glfwGetWindowUserPointer(window)).events_cb;
 
-			switch (action) {
-				case GLFW_PRESS: {
-					MouseButtonPressedEvent e(button);
-					cb(e);
-					break;
-				}
-				case GLFW_RELEASE: {
-					MouseButtonReleasedEvent e(button);
-					cb(e);
-					break;
-				}
-			}
-		});
+					switch (action) {
+						case GLFW_PRESS: {
+							MouseButtonPressedEvent e(button);
+							cb(e);
+							break;
+						}
+						case GLFW_RELEASE: {
+							MouseButtonReleasedEvent e(button);
+							cb(e);
+							break;
+						}
+					}
+				});
 
 		glfwSetScrollCallback(raw_pointer, [](GLFWwindow *window, double xOffset, double yOffset) {
 			auto cb = (*(WindowData *)glfwGetWindowUserPointer(window)).events_cb;
@@ -81,27 +83,28 @@ namespace geg {
 			cb(e);
 		});
 
-		glfwSetKeyCallback(raw_pointer, [](GLFWwindow *window, int key, int scancode, int action, int mods) {
-			auto cb = (*(WindowData *)glfwGetWindowUserPointer(window)).events_cb;
+		glfwSetKeyCallback(
+				raw_pointer, [](GLFWwindow *window, int key, int scancode, int action, int mods) {
+					auto cb = (*(WindowData *)glfwGetWindowUserPointer(window)).events_cb;
 
-			switch (action) {
-				case GLFW_PRESS: {
-					KeyPressedEvent e(key, 0);
-					cb(e);
-					break;
-				}
-				case GLFW_RELEASE: {
-					KeyReleasedEvent e(key);
-					cb(e);
-					break;
-				}
-				case GLFW_REPEAT: {
-					KeyPressedEvent e(key, 1);
-					cb(e);
-					break;
-				}
-			}
-		});
+					switch (action) {
+						case GLFW_PRESS: {
+							KeyPressedEvent e(key, 0);
+							cb(e);
+							break;
+						}
+						case GLFW_RELEASE: {
+							KeyReleasedEvent e(key);
+							cb(e);
+							break;
+						}
+						case GLFW_REPEAT: {
+							KeyPressedEvent e(key, 1);
+							cb(e);
+							break;
+						}
+					}
+				});
 
 		glfwSetCharCallback(raw_pointer, [](GLFWwindow *window, uint32_t keycode) {
 			auto cb = (*(WindowData *)glfwGetWindowUserPointer(window)).events_cb;

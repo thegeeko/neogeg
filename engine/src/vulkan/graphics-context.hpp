@@ -6,6 +6,7 @@
 #include "present-renderer.hpp"
 #include "core/window.hpp"
 #include "events/events.hpp"
+#include "core/input.hpp"
 #include "renderer/camera.hpp"
 
 #include "vulkan/device.hpp"
@@ -26,11 +27,28 @@ namespace geg {
 			return false;
 		};
 
+		bool toggle_ui(const KeyPressedEvent& event) {
+			if (event.key_code() == input::KEY_GRAVE_ACCENT) {
+				m_debug_ui_settings.imgui_renderer = !m_debug_ui_settings.imgui_renderer;
+			}
+
+			return false;
+		}
+
 		// @TODO fix hard-coding depth format
 		const vk::Format depth_format = vk::Format::eD32SfloatS8Uint;
 
 	private:
 		void create_depth_resources();
+		void draw_debug_ui();
+
+		struct {
+			bool imgui_renderer = true;
+			bool mesh_renderer = true;
+			vk::PresentModeKHR present_mode = vk::PresentModeKHR::eMailbox;
+			std::string present_mode_name = "Fifo - VSync";
+		} m_debug_ui_settings = {};
+
 		std::shared_ptr<Window> m_window;
 
 		std::shared_ptr<vulkan::Device> m_device;

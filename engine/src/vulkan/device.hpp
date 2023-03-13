@@ -28,7 +28,7 @@ namespace geg::vulkan {
 		std::shared_ptr<Window> window;
 
 		// helpers
-		void single_time_command(std::function<void(vk::CommandBuffer)>);
+		void single_time_command(const std::function<void(vk::CommandBuffer)>&);
 		void copy_buffer(vk::Buffer src, vk::Buffer dst, vk::DeviceSize size);
 		void upload_to_buffer(vk::Buffer buffer, void *data, vk::DeviceSize size);
 		DescriptorBuilder build_descriptor() {

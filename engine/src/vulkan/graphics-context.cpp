@@ -2,6 +2,8 @@
 
 #include <utility>
 
+#include "imgui.h"
+
 #include "vulkan/renderer.hpp"
 #include "vulkan/swapchain.hpp"
 #include "glm/gtc/matrix_transform.hpp"
@@ -89,9 +91,14 @@ namespace geg {
 	void VulkanContext::render(const Camera& camera) {
 		if (m_current_dimensions.first == 0 || m_current_dimensions.second == 0) return;
 
+		draw_debug_ui();
+
+		if(m_swapchain->present_mode() != m_debug_ui_settings.present_mode)
+			should_resize_swapchain = true;
+
 		if (should_resize_swapchain) {
 			m_device->vkdevice.waitIdle();
-			m_swapchain->recreate();
+			m_swapchain->recreate(m_debug_ui_settings.present_mode);
 			create_depth_resources();
 
 			const vulkan::DepthResources& new_dpeth = vulkan::DepthResources{
@@ -128,8 +135,10 @@ namespace geg {
 		auto cmd = m_command_buffers[m_current_image_index];
 		cmd.begin(vk::CommandBufferBeginInfo{});
 		m_clear_renderer->fill_commands(cmd, camera, m_current_image_index);
-		m_mesh_renderer->fill_commands(cmd, camera, m_current_image_index);
-		m_imgui_renderer->fill_commands(cmd, camera, m_current_image_index);
+		if (m_debug_ui_settings.mesh_renderer)
+			m_mesh_renderer->fill_commands(cmd, camera, m_current_image_index);
+		if (m_debug_ui_settings.imgui_renderer)
+			m_imgui_renderer->fill_commands(cmd, camera, m_current_image_index);
 		m_present_renderer->fill_commands(cmd, camera, m_current_image_index);
 		cmd.end();
 
@@ -159,5 +168,56 @@ namespace geg {
 			GEG_CORE_ASSERT(false, "unkonwn error when presenting image")
 
 		// render stuff
+	}
+
+	void VulkanContext::draw_debug_ui() {
+		ImGui::Begin("Vulkan Context");
+
+		if (ImGui::CollapsingHeader("Info: "), ImGuiTreeNodeFlags_DefaultOpen) {
+			auto props = m_device->physical_device.getProperties();
+			ImGui::Text("Device name: %s", props.deviceName.data());
+			ImGui::Text("Device type: %s", vk::to_string(props.deviceType).data());
+			ImGui::Text(
+					"Current dimensions: %d, %d", m_current_dimensions.first, m_current_dimensions.second);
+			ImGui::Text("Current image index: %d", m_current_image_index);
+		}
+
+		ImGui::Spacing();
+		if (ImGui::CollapsingHeader("settings: ", ImGuiTreeNodeFlags_DefaultOpen)) {
+			if (ImGui::BeginCombo("Present Mode: ", m_debug_ui_settings.present_mode_name.c_str())) {
+				if (ImGui::Selectable("Fifo - Vsync")) {
+					m_debug_ui_settings.present_mode = vk::PresentModeKHR::eFifo;
+					m_debug_ui_settings.present_mode_name = "Fifo - Vsync";
+				}
+				if (m_debug_ui_settings.present_mode == vk::PresentModeKHR::eFifo)
+					ImGui::SetItemDefaultFocus();
+
+				if (ImGui::Selectable("Immediate")) {
+					m_debug_ui_settings.present_mode = vk::PresentModeKHR::eImmediate;
+					m_debug_ui_settings.present_mode_name = "Immediate";
+				}
+				if (m_debug_ui_settings.present_mode == vk::PresentModeKHR::eImmediate)
+					ImGui::SetItemDefaultFocus();
+
+				if (ImGui::Selectable("Mailbox")) {
+					m_debug_ui_settings.present_mode = vk::PresentModeKHR::eMailbox;
+					m_debug_ui_settings.present_mode_name = "Mailbox";
+				}
+				if (m_debug_ui_settings.present_mode == vk::PresentModeKHR::eMailbox)
+					ImGui::SetItemDefaultFocus();
+
+				if (ImGui::Selectable("Fifo Relaxed")) {
+					m_debug_ui_settings.present_mode = vk::PresentModeKHR::eFifoRelaxed;
+					m_debug_ui_settings.present_mode_name = "Fifo Relaxed";
+				}
+				if (m_debug_ui_settings.present_mode == vk::PresentModeKHR::eFifoRelaxed)
+					ImGui::SetItemDefaultFocus();
+
+				ImGui::EndCombo();
+			}
+			ImGui::Checkbox("ImGui Renderer: ", &m_debug_ui_settings.imgui_renderer);
+			ImGui::Checkbox("Mesh Renderer: ", &m_debug_ui_settings.mesh_renderer);
+		}
+		ImGui::End();
 	}
 }		 // namespace geg

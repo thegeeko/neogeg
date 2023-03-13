@@ -12,11 +12,10 @@
 namespace geg {
 
 	struct AppInfo {
-		std::string name;
-		uint32_t width;
-		uint32_t height;
-
-		static auto g_default() -> AppInfo { return AppInfo{"Geg App", 1280, 720}; }
+		std::string name = "Geg App";
+		uint32_t width = 1280;
+		uint32_t height = 720;
+		bool start_maximized = true;
 	};
 
 	class App {

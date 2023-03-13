@@ -1,19 +1,21 @@
 #include "imgui-renderer.hpp"
+
+#include <utility>
 #include "imgui.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_vulkan.h"
 
 namespace geg::vulkan {
 	ImguiRenderer::ImguiRenderer(
-			std::shared_ptr<Device> device, std::shared_ptr<Swapchain> swapchain):
-			Renderer(device, swapchain) {
+			const std::shared_ptr<Device>& device, std::shared_ptr<Swapchain> swapchain):
+			Renderer(device, std::move(swapchain)) {
 		IMGUI_CHECKVERSION();
 		ImGui::CreateContext();
 		ImGuiIO& io = ImGui::GetIO();
 		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 		io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+//		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 		io.Fonts->AddFontFromFileTTF("assets/fonts/mononoki.ttf", 13);
 
 		create_descriptor_pool();
@@ -58,7 +60,6 @@ namespace geg::vulkan {
 	void ImguiRenderer::fill_commands(
 			const vk::CommandBuffer& cmd, const Camera& camera, uint32_t frame_index) {
 		begin(cmd, frame_index);
-		ImGui::ShowDebugLogWindow();
 		ImGuiIO& io = ImGui::GetIO();
 		io.DisplaySize = ImVec2(
 				static_cast<float>(m_swapchain->extent().width),

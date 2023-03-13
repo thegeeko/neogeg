@@ -259,7 +259,7 @@ namespace geg::vulkan {
 		instance.destroy();
 	}
 
-	void Device::single_time_command(std::function<void(vk::CommandBuffer)> lambda) {
+	void Device::single_time_command(const std::function<void(vk::CommandBuffer)> &lambda) {
 		auto command_buffer = vkdevice
 															.allocateCommandBuffers({
 																	.commandPool = command_pool,

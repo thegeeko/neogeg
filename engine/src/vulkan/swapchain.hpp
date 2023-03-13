@@ -15,16 +15,13 @@ namespace geg::vulkan {
 		Swapchain(Swapchain &&) = delete;
 		Swapchain &operator=(Swapchain &&) = delete;
 
-		void recreate();
+		void recreate(std::optional<vk::PresentModeKHR> present_mode);
+		vk::PresentModeKHR present_mode() const { return m_present_mode; }
 
 		auto format() const { return m_surface_format.format; }
 		auto images() const { return m_images; }
 		auto extent() const { return m_extent; }
 		uint32_t image_count() const { return m_images.size(); }
-
-		bool should_recreate(std::pair<uint32_t, uint32_t> curr_dimintaions) const {
-			return curr_dimintaions.first != m_extent.width || curr_dimintaions.second != m_extent.height;
-		};
 
 		vk::SwapchainKHR swapchain = nullptr;
 	private:

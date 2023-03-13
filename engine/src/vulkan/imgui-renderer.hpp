@@ -5,7 +5,7 @@
 namespace geg::vulkan {
 	class ImguiRenderer final: public Renderer {
 	public:
-		ImguiRenderer(std::shared_ptr<Device> device, std::shared_ptr<Swapchain> swapchain);
+		ImguiRenderer(const std::shared_ptr<Device>& device, std::shared_ptr<Swapchain> swapchain);
 
 		~ImguiRenderer() override;
 

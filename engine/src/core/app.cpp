@@ -11,7 +11,7 @@
 namespace geg {
 	App::App() {
 		Logger::init();
-		m_window = std::make_shared<Window>(AppInfo::g_default(), GEG_BIND_CB(event_handler));
+		m_window = std::make_shared<Window>(AppInfo{}, GEG_BIND_CB(event_handler));
 
 		init();
 	}
@@ -42,6 +42,7 @@ namespace geg {
 	void App::event_handler(Event &e) {
 		Dispatcher::dispatch<WindowCloseEvent>(e, GEG_BIND_CB(close));
 		Dispatcher::dispatch<WindowResizeEvent>(e, GEG_BIND_CB(m_graphics_context->resize));
+		Dispatcher::dispatch<KeyPressedEvent>(e, GEG_BIND_CB(m_graphics_context->toggle_ui));
 
 		Dispatcher::dispatch<KeyPressedEvent>(e, [](const KeyPressedEvent &event) {
 			if (event.key_code() == input::KEY_T) {

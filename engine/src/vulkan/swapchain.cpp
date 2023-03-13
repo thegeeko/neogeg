@@ -109,7 +109,7 @@ namespace geg::vulkan {
 				m_device->vkdevice.destroyImageView(image.view);
 
 		std::vector<vk::Image> images = m_device->vkdevice.getSwapchainImagesKHR(swapchain);
-		m_images.resize(images.size()); // resize local images to match swapchain images
+		m_images.resize(images.size());		 // resize local images to match swapchain images
 		int i = 0;
 		for (auto& image : images) {
 			vk::ImageView image_view = m_device->vkdevice.createImageView({
@@ -141,7 +141,8 @@ namespace geg::vulkan {
 		GEG_CORE_INFO("created swapchain with w: {}, h: {}", m_extent.width, m_extent.height);
 	}
 
-	void Swapchain::recreate() {
+	void Swapchain::recreate(std::optional<vk::PresentModeKHR> present_mode) {
+		if (present_mode.has_value()) m_present_mode = present_mode.value();
 		create_swapchain();
 	}
 
