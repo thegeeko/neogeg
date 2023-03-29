@@ -2,6 +2,8 @@
 
 #include "renderer.hpp"
 
+// @TODO refactor this to not be a renderer
+
 namespace geg::vulkan {
 	class ClearRenderer final: public Renderer {
 	public:

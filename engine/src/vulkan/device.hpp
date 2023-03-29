@@ -10,7 +10,7 @@
 namespace geg::vulkan {
 	class Device {
 	public:
-		Device(std::shared_ptr<Window> window);
+		Device(const std::shared_ptr<Window>& window);
 		~Device();
 		Device(const Device &) = delete;
 		Device &operator=(const Device &) = delete;

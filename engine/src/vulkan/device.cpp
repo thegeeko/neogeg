@@ -76,7 +76,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debugMessageFunc(
 }
 
 namespace geg::vulkan {
-	Device::Device(std::shared_ptr<Window> window) {
+	Device::Device(const std::shared_ptr<Window> &window) {
 		constexpr auto validation_layers = std::array<const char *, 1>{"VK_LAYER_KHRONOS_validation"};
 
 		this->window = window;
@@ -91,8 +91,7 @@ namespace geg::vulkan {
 
 		// required extensions
 		uint32_t glfw_exts_count = 0;
-		const char **glfw_exts;
-		glfw_exts = glfwGetRequiredInstanceExtensions(&glfw_exts_count);
+		const char **glfw_exts = glfwGetRequiredInstanceExtensions(&glfw_exts_count);
 
 		auto req_exts = std::vector<const char *>(glfw_exts, glfw_exts + glfw_exts_count);
 		auto opt_exts = std::vector<const char *>{VK_EXT_DEBUG_UTILS_EXTENSION_NAME};
@@ -173,6 +172,7 @@ namespace geg::vulkan {
 		}
 
 		// create surface
+		// this cuz glfw doesn't take vkhpp types
 		VkSurfaceKHR tmp_surface;
 		glfwCreateWindowSurface(instance, window->raw_pointer, nullptr, &tmp_surface);
 		surface = tmp_surface;
@@ -220,8 +220,24 @@ namespace geg::vulkan {
 				.pQueuePriorities = &queue_priority,
 		};
 
+		vk::PhysicalDeviceDescriptorIndexingFeaturesEXT device_indexing_features = {
+				.shaderSampledImageArrayNonUniformIndexing = VK_TRUE,
+				.descriptorBindingVariableDescriptorCount = VK_TRUE,
+				.runtimeDescriptorArray = VK_TRUE,
+		};
+
+		const vk::PhysicalDeviceFeatures device_features = {
+				.shaderSampledImageArrayDynamicIndexing = VK_TRUE,
+		};
+
+		const vk::PhysicalDeviceFeatures2 device_features2 = {
+				.pNext = &device_indexing_features,
+				.features = device_features,
+		};
+
 		std::array<const char *, 1> device_extensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 		vkdevice = physical_device.createDevice({
+				.pNext = &device_features2,
 				.queueCreateInfoCount = 1,
 				.pQueueCreateInfos = &device_queue_create_info,
 				.enabledExtensionCount = static_cast<uint32_t>(1),
