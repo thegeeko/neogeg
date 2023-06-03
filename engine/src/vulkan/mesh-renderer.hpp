@@ -3,6 +3,8 @@
 #include "renderer.hpp"
 #include "shader.hpp"
 #include "assets/meshes/meshes.hpp"
+#include "uniform-buffer.hpp"
+#include "glm/gtx/transform.hpp"
 
 namespace geg::vulkan {
 	class MeshRenderer final: public Renderer {
@@ -24,10 +26,23 @@ namespace geg::vulkan {
 
 		// @TODO: remove this
 		Mesh* m = new Mesh("assets/meshes/teapot.gltf", m_device);
+
 		struct {
-			glm::vec4 color = glm::vec4(0.6f, 0.4f, 0.1f, 1.f);
-			glm::mat4 mvp = glm::mat4(1);
-		} push{};
+			glm::mat4 proj = glm::mat4(1);
+			glm::mat4 view = glm::mat4(1);
+			glm::mat4 proj_view = glm::mat4(1);
+		} global_data{};
+
+		struct {
+			glm::vec4 color = glm::vec4(1);
+		} objec_data{};
+
+		struct {
+			glm::mat4 model = glm::rotate(glm::mat4(1), 3.140f, {0.0f, 0.0f, 1.0f});
+		} push_data{};
+
+		UnifromBuffer m_global_ubo{m_device, sizeof(global_data), 1};
+		UnifromBuffer m_object_ubo{m_device, sizeof(objec_data), 1};
 
 		vk::Pipeline m_pipeline;
 		vk::PipelineLayout m_pipeline_layout;

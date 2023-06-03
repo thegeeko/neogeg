@@ -22,11 +22,17 @@ namespace geg::vulkan {
 			const vk::CommandBuffer& cmd, const Camera& camera, uint32_t frame_index) {
 		begin(cmd, frame_index);
 
-		ImGui::Begin("color");
-		ImGui::ColorPicker4("color", &push.color[0]);
-		ImGui::End();
+		global_data.proj = projection;
+		global_data.view = camera.view_matrix();
+		global_data.proj_view = projection * camera.view_matrix();
 
-		push.mvp = projection * camera.view_matrix();
+		// update the ubos
+		m_global_ubo.write_at_frame(&global_data, sizeof(global_data), 0);
+		m_object_ubo.write_at_frame(&objec_data, sizeof(objec_data), 0);
+
+		ImGui::Begin("color");
+		ImGui::ColorPicker4("color", &objec_data.color[0]);
+		ImGui::End();
 
 		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, m_pipeline);
 		cmd.setViewport(
@@ -46,10 +52,30 @@ namespace geg::vulkan {
 						.extent = m_swapchain->extent(),
 				});
 		cmd.pushConstants(
-				m_pipeline_layout, vk::ShaderStageFlagBits::eAllGraphics, 0, sizeof(typeof(push)), &push);
+				m_pipeline_layout, vk::ShaderStageFlagBits::eAllGraphics, 0, sizeof(push_data), &push_data);
+
+		std::array<vk::DescriptorSet, 3> sets = {
+				m_global_ubo.descriptor_set,
+				m_object_ubo.descriptor_set,
+				m->descriptor_set,
+		};
+
+		// ubos need the inflight frame index not the general frame index
+		std::array<uint32_t, 2> offsets = {
+				m_global_ubo.frame_offset(0),
+				m_object_ubo.frame_offset(0),
+		};
+
 		cmd.bindDescriptorSets(
-				vk::PipelineBindPoint::eGraphics, m_pipeline_layout, 0, 1, &m->descriptor_set, 0, nullptr);
-		cmd.draw(m->index_count(), 1, 0, 0);
+				vk::PipelineBindPoint::eGraphics,
+				m_pipeline_layout,
+				0,
+				sets.size(),
+				sets.data(),
+				offsets.size(),
+				offsets.data());
+
+		cmd.draw(m->indices_count(), 1, 0, 0);
 
 		cmd.endRenderPass();
 	}
@@ -123,17 +149,26 @@ namespace geg::vulkan {
 		};
 
 		// @TODO: automate this
-		auto layout = m_device->build_descriptor()
-											.bind_buffer_layout(
-													0, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex)
-											.bind_buffer_layout(
-													1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex)
-											.build_layout()
-											.value();
+		auto gubo_layout = m_global_ubo.descriptor_set_layout;
+		auto oubo_layout = m_object_ubo.descriptor_set_layout;
+		auto geometry_layout =
+				m_device->build_descriptor()
+						.bind_buffer_layout(
+								0, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex)
+						.bind_buffer_layout(
+								1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex)
+						.build_layout()
+						.value();
+
+		const std::array<vk::DescriptorSetLayout, 3> layouts = {
+				gubo_layout,
+				oubo_layout,
+				geometry_layout,
+		};
 
 		m_pipeline_layout = m_device->vkdevice.createPipelineLayout(vk::PipelineLayoutCreateInfo{
-				.setLayoutCount = 1,
-				.pSetLayouts = &layout,
+				.setLayoutCount = layouts.size(),
+				.pSetLayouts = layouts.data(),
 				.pushConstantRangeCount = 1,
 				.pPushConstantRanges = &push_range,
 		});

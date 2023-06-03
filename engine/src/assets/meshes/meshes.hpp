@@ -29,7 +29,7 @@ namespace geg::vulkan {
 
 		vk::Buffer buffer;
 		fs::path path() { return m_path; };
-		uint32_t index_count() const { return (size - index_offset) / sizeof(uint32_t); };
+		uint32_t indices_count() const { return (size - index_offset) / sizeof(uint32_t); };
 
 	private:
 

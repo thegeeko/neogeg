@@ -15,13 +15,13 @@ namespace geg {
 
 		void update(double dt, const glm::vec2& mouse_pos, bool mouse_pressed);
 
-		virtual glm::mat4 view_matrix() const override {
+		glm::mat4 view_matrix() const override {
 			const glm::mat4 t = glm::translate(glm::mat4(1.0f), -m_camera_pos);
 			const glm::mat4 r = glm::mat4_cast(m_camera_orientation);
 			return r * t;
 		};
 
-		virtual glm::vec3 position() const override { return m_camera_pos; }
+		glm::vec3 position() const override { return m_camera_pos; }
 
 		void set_position(const glm::vec3& pos) { m_camera_pos = pos; }
 		void reset_mouse_pos(const glm::vec2& p) { m_mouse_pos = p; };

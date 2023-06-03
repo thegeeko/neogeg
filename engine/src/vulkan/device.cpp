@@ -201,16 +201,18 @@ namespace geg::vulkan {
 		GEG_CORE_ASSERT(!queue_families.empty(), "No queue families found");
 
 		// assuming that the qraphics queue family supports presentation
+		// @TODO support when they are not the same queue
 		uint32_t i = 0;
 		for (auto &queue_family : queue_families) {
-			if ((queue_family.queueFlags & vk::QueueFlagBits::eGraphics) &&
+			if ((queue_family.queueFlags & vk::QueueFlagBits::eGraphics | vk::QueueFlagBits::eCompute |
+					 vk::QueueFlagBits::eTransfer) &&
 					physical_device.getSurfaceSupportKHR(i, surface)) {
 				queue_family_index = i;
 				break;
 			}
 			i++;
 		}
-		GEG_CORE_ASSERT(queue_family_index.has_value(), "No graphics queue family found");
+		GEG_CORE_ASSERT(queue_family_index.has_value(), "No graphics queue family found, fixing this is on my todo");
 
 		// creating a logical device
 		float queue_priority = 1.0f;
