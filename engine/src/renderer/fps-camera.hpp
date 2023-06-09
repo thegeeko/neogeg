@@ -3,6 +3,7 @@
 #include "renderer/camera.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtx/quaternion.hpp"
+#include "imgui.h"
 
 namespace geg {
 	class CameraPositioner_FirstPerson final: public CameraPositionerInterface {
@@ -25,6 +26,12 @@ namespace geg {
 
 		void set_position(const glm::vec3& pos) { m_camera_pos = pos; }
 		void reset_mouse_pos(const glm::vec2& p) { m_mouse_pos = p; };
+
+		void draw_debug_ui() {
+			ImGui::Begin("camera");
+			ImGui::InputFloat3("cam pos", &m_camera_pos.x);
+			ImGui::End();
+		}
 
 		struct Movement {
 			bool forward = false;

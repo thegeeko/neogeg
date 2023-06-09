@@ -25,13 +25,17 @@ namespace geg::vulkan {
 		global_data.proj = projection;
 		global_data.view = camera.view_matrix();
 		global_data.proj_view = projection * camera.view_matrix();
+		global_data.cam_pos = camera.position();
 
 		// update the ubos
 		m_global_ubo.write_at_frame(&global_data, sizeof(global_data), 0);
 		m_object_ubo.write_at_frame(&objec_data, sizeof(objec_data), 0);
 
 		ImGui::Begin("color");
-		ImGui::ColorPicker4("color", &objec_data.color[0]);
+		ImGui::ColorPicker3("albedo", &objec_data.color[0]);
+		ImGui::DragFloat("metallic", &objec_data.metallic, 0.02f, 0, 1.0f);
+		ImGui::DragFloat("roughness", &objec_data.roughness, 0.02f, 0, 1.0f);
+		ImGui::DragFloat("ao", &objec_data.ao, 0.02f, 0, 1.0f);
 		ImGui::End();
 
 		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, m_pipeline);
@@ -145,7 +149,7 @@ namespace geg::vulkan {
 		vk::PushConstantRange push_range{
 				.stageFlags = vk::ShaderStageFlagBits::eAllGraphics,
 				.offset = 0,
-				.size = sizeof(glm::vec4) + sizeof(glm::mat4),
+				.size = sizeof(push_data),
 		};
 
 		// @TODO: automate this

@@ -127,6 +127,8 @@ namespace geg {
 			ImGui::Text("Fps: %i", Timer::fps());
 			ImGui::End();
 
+			m_camera_controller.draw_debug_ui();
+
 			m_window->poll_events();
 			if (!paused) {
 				m_camera_controller.update(Timer::delta(), {mouse_x, mouse_y}, is_pressed);

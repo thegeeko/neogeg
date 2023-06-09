@@ -31,14 +31,19 @@ namespace geg::vulkan {
 			glm::mat4 proj = glm::mat4(1);
 			glm::mat4 view = glm::mat4(1);
 			glm::mat4 proj_view = glm::mat4(1);
+			glm::vec3 cam_pos = glm::vec3(0);
 		} global_data{};
 
 		struct {
-			glm::vec4 color = glm::vec4(1);
+			glm::vec3 color = glm::vec4(1);
+			float metallic = 1.0f;
+			float roughness = 1.0f;
+			float ao = 1.0f;
 		} objec_data{};
 
 		struct {
 			glm::mat4 model = glm::rotate(glm::mat4(1), 3.140f, {0.0f, 0.0f, 1.0f});
+			glm::mat4 norm = glm::rotate(glm::mat4(1), 3.140f, {0.0f, 0.0f, 1.0f});
 		} push_data{};
 
 		UnifromBuffer m_global_ubo{m_device, sizeof(global_data), 1};
