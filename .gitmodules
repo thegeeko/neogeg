@@ -19,3 +19,6 @@
 [submodule "engine/lib/assimp"]
 	path = engine/lib/assimp
 	url = https://github.com/assimp/assimp
+[submodule "engine/lib/stb"]
+	path = engine/lib/stb
+	url = https://github.com/thegeeko/stb

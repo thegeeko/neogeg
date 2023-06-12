@@ -4,7 +4,7 @@
 #include "vulkan/device.hpp"
 
 namespace geg::vulkan {
-	DescriptorAllocator::DescriptorAllocator(Device* device) {
+	DescriptorAllocator::DescriptorAllocator(Device *device) {
 		m_device = device;
 	}
 
@@ -92,7 +92,7 @@ namespace geg::vulkan {
 
 	// DescriptorAllocator
 
-	DescriptorLayoutCache::DescriptorLayoutCache(Device* device) {
+	DescriptorLayoutCache::DescriptorLayoutCache(Device *device) {
 		m_device = device;
 	}
 

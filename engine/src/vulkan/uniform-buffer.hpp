@@ -4,10 +4,10 @@
 #include "device.hpp"
 
 namespace geg::vulkan {
-	class UnifromBuffer {
+	class UniformBuffer {
 	public:
-		UnifromBuffer(std::shared_ptr<Device> device, size_t size, uint32_t num_of_frames);
-		~UnifromBuffer();
+		UniformBuffer(std::shared_ptr<Device> device, size_t size, uint32_t num_of_frames);
+		~UniformBuffer();
 
 		vk::DescriptorSetLayout descriptor_set_layout;
 		vk::DescriptorSet descriptor_set;

@@ -212,7 +212,9 @@ namespace geg::vulkan {
 			}
 			i++;
 		}
-		GEG_CORE_ASSERT(queue_family_index.has_value(), "No graphics queue family found, fixing this is on my todo");
+		GEG_CORE_ASSERT(
+				queue_family_index.has_value(),
+				"No graphics queue family found, fixing this is on my todo");
 
 		// creating a logical device
 		float queue_priority = 1.0f;
@@ -304,22 +306,21 @@ namespace geg::vulkan {
 		vkdevice.freeCommandBuffers(command_pool, {command_buffer});
 	}
 
-	void Device::copy_buffer(vk::Buffer src, vk::Buffer dst, vk::DeviceSize size) {
-		single_time_command([&size, &src, &dst](vk::CommandBuffer command_buffer) {
-			vk::BufferCopy copy_region{
-					.srcOffset = 0,
-					.dstOffset = 0,
-					.size = size,
-			};
+	void Device::copy_buffer(
+			vk::Buffer src, vk::Buffer dst, vk::DeviceSize size, vk::CommandBuffer cmd) {
+		vk::BufferCopy copy_region{
+				.srcOffset = 0,
+				.dstOffset = 0,
+				.size = size,
+		};
 
-			command_buffer.copyBuffer(src, dst, copy_region);
-		});
+		cmd.copyBuffer(src, dst, copy_region);
 	}
 
 	void Device::upload_to_buffer(vk::Buffer buffer, void *data, vk::DeviceSize size) {
 		vk::BufferCreateInfo buffer_info{
 				.size = size,
-				.usage = vk::BufferUsageFlagBits::eTransferDst,
+				.usage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc,
 				.sharingMode = vk::SharingMode::eExclusive,
 		};
 
@@ -335,7 +336,105 @@ namespace geg::vulkan {
 		memcpy(mapping_addr, data, size);
 		allocator.unmapMemory(staging_alloc.get());
 
-		copy_buffer(staging_buffer.get(), buffer, size);
+		single_time_command([&](auto cmd) { copy_buffer(staging_buffer.get(), buffer, size, cmd); });
+	}
+
+	void Device::upload_to_image(
+			vk::Image image,
+			vk::ImageLayout layout_after,
+			vk::Format format,
+			vk::Extent3D extent,
+			const void *data,
+			vk::DeviceSize size) {
+		vk::BufferCreateInfo buffer_info{
+				.size = size,
+				.usage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc,
+				.sharingMode = vk::SharingMode::eExclusive,
+		};
+
+		vma::AllocationCreateInfo alloc_info = {
+				.usage = vma::MemoryUsage::eCpuCopy,
+				.requiredFlags =
+						vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
+		};
+
+		auto [staging_buffer, staging_alloc] = allocator.createBufferUnique(buffer_info, alloc_info);
+
+		void *mapping_addr = allocator.mapMemory(staging_alloc.get());
+		memcpy(mapping_addr, data, size);
+		allocator.unmapMemory(staging_alloc.get());
+
+		single_time_command([&](auto cmd) {
+			transition_image_layout(
+					image, format, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, cmd);
+			copy_buffer_to_image(staging_buffer.get(), image, extent, cmd);
+			transition_image_layout(
+					image, format, vk::ImageLayout::eTransferDstOptimal, layout_after, cmd);
+		});
+	}
+
+	void Device::copy_buffer_to_image(
+			vk::Buffer src, vk::Image dst, vk::Extent3D image_extent, vk::CommandBuffer cmd) {
+		const vk::BufferImageCopy copy_region{
+				.bufferOffset = 0,
+				.bufferRowLength = 0,
+				.bufferImageHeight = 0,
+				.imageSubresource{
+						.aspectMask = vk::ImageAspectFlagBits::eColor,
+						.mipLevel = 0,
+						.baseArrayLayer = 0,
+						.layerCount = 1,
+				},
+				.imageExtent = image_extent,
+		};
+
+		cmd.copyBufferToImage(src, dst, vk::ImageLayout::eTransferDstOptimal, {copy_region});
+	}		 // namespace geg::vulkan
+
+	void Device::transition_image_layout(
+			vk::Image image,
+			vk::Format,
+			vk::ImageLayout old_layout,
+			vk::ImageLayout new_layout,
+			vk::CommandBuffer cmd) {
+		vk::ImageMemoryBarrier barrier{
+				.oldLayout = old_layout,
+				.newLayout = new_layout,
+				.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+				.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+				.image = image,
+				.subresourceRange{
+						.aspectMask = vk::ImageAspectFlagBits::eColor,
+						.baseMipLevel = 0,
+						.levelCount = 1,
+						.baseArrayLayer = 0,
+						.layerCount = 1,
+				},
+		};
+
+		vk::PipelineStageFlags src_stage;
+		vk::PipelineStageFlags dst_stage;
+
+		if (old_layout == vk::ImageLayout::eUndefined &&
+				new_layout == vk::ImageLayout::eTransferDstOptimal) {
+			barrier.srcAccessMask = vk::AccessFlagBits::eNone;
+			barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
+
+			src_stage = vk::PipelineStageFlagBits::eTopOfPipe;
+			dst_stage = vk::PipelineStageFlagBits::eTransfer;
+		} else if (
+				old_layout == vk::ImageLayout::eTransferDstOptimal &&
+				new_layout == vk::ImageLayout::eShaderReadOnlyOptimal) {
+			barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+			barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+
+			src_stage = vk::PipelineStageFlagBits::eTransfer;
+			dst_stage = vk::PipelineStageFlagBits::eFragmentShader;
+		} else {
+			GEG_CORE_ERROR("Unsupported image transition");
+		}
+
+		cmd.pipelineBarrier(src_stage, dst_stage, vk::DependencyFlags(0), nullptr, nullptr, {barrier});
 	}
 
 }		 // namespace geg::vulkan

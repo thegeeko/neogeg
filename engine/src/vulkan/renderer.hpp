@@ -18,7 +18,7 @@ namespace geg::vulkan {
 	class Renderer {
 	public:
 		Renderer(
-				std::shared_ptr<Device> device,
+				const std::shared_ptr<Device>& device,
 				std::shared_ptr<Swapchain> swapchain,
 				std::optional<DepthResources> depth_resources = {},
 				RendererInfo info = {});

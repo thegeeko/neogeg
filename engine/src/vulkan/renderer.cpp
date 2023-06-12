@@ -4,11 +4,11 @@
 
 namespace geg::vulkan {
 	Renderer::Renderer(
-			const std::shared_ptr<Device> device,
+			const std::shared_ptr<Device>& device,
 			std::shared_ptr<Swapchain> swapchain,
 			std::optional<DepthResources> depth_resources,
 			RendererInfo info):
-			m_device(std::move(device)),
+			m_device(device),
 			m_swapchain(std::move(swapchain)), m_has_depth(depth_resources.has_value()),
 			m_should_clear(info.should_clear), m_should_present(info.should_present) {
 		const auto color_format = m_swapchain->format();

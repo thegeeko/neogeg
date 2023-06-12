@@ -5,10 +5,10 @@
 namespace geg::vulkan {
 
 	MeshRenderer::MeshRenderer(
-			std::shared_ptr<Device> device,
+			const std::shared_ptr<Device>& device,
 			std::shared_ptr<Swapchain> swapchain,
 			DepthResources depth_resources):
-			Renderer(std::move(device), std::move(swapchain), depth_resources) {
+			Renderer(device, std::move(swapchain), depth_resources) {
 		init_pipeline();
 	}
 
@@ -58,10 +58,13 @@ namespace geg::vulkan {
 		cmd.pushConstants(
 				m_pipeline_layout, vk::ShaderStageFlagBits::eAllGraphics, 0, sizeof(push_data), &push_data);
 
-		std::array<vk::DescriptorSet, 3> sets = {
+		std::array<vk::DescriptorSet, 6> sets = {
 				m_global_ubo.descriptor_set,
 				m_object_ubo.descriptor_set,
 				m->descriptor_set,
+				albedo.descriptor_set,
+				metallic.descriptor_set,
+				roughness.descriptor_set
 		};
 
 		// ubos need the inflight frame index not the general frame index
@@ -164,10 +167,13 @@ namespace geg::vulkan {
 						.build_layout()
 						.value();
 
-		const std::array<vk::DescriptorSetLayout, 3> layouts = {
+		const std::array<vk::DescriptorSetLayout, 6> layouts = {
 				gubo_layout,
 				oubo_layout,
 				geometry_layout,
+				albedo.descriptor_set_layout,
+				metallic.descriptor_set_layout,
+				roughness.descriptor_set_layout,
 		};
 
 		m_pipeline_layout = m_device->vkdevice.createPipelineLayout(vk::PipelineLayoutCreateInfo{

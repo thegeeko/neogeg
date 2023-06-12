@@ -2,13 +2,6 @@
 # =============== deps ==============
 find_package(Vulkan REQUIRED glslang SPIRV-Tools)
 
-#if (UNIX)
-#    find_library(SYS_SHADERC_LIB shaderc_combined REQUIRED)
-#    add_library(sys_shaderc STATIC IMPORTED)
-#    message(STATUS "Found shaderc_combined: ${SYS_SHADERC_LIB}")
-#    set_property(TARGET sys_shaderc PROPERTY IMPORTED_LOCATION ${SYS_SHADERC_LIB})
-#endif ()
-
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -25,6 +18,7 @@ add_subdirectory("lib/spdlog")
 add_subdirectory("lib/glm")
 add_subdirectory("lib/vma-hpp")
 add_subdirectory("lib/imgui")
+add_subdirectory("lib/stb")
 # ===================================
 
 # =============== geg ==============
@@ -61,6 +55,7 @@ target_link_libraries(geg PUBLIC glfw)
 target_link_libraries(geg PUBLIC glm)
 target_link_libraries(geg PUBLIC VulkanMemoryAllocator)
 target_link_libraries(geg PUBLIC imgui)
+target_link_libraries(geg PUBLIC stb)
 target_link_libraries(geg PUBLIC assimp)
 
 # header only libs

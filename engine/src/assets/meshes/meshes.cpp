@@ -81,7 +81,8 @@ namespace geg::vulkan {
 		memcpy(mapping_addr, vertices.data(), vertex_size);
 		memcpy(indecies_mapping_addr, indices.data(), index_size);
 		device->allocator.unmapMemory(staging_alloc.get());
-		device->copy_buffer(staging_buffer.get(), buffer, size);
+		device->single_time_command(
+				[&](auto cmd) { device->copy_buffer(staging_buffer.get(), buffer, size, cmd); });
 
 		vk::DescriptorBufferInfo vertx_desc_buff{
 				.buffer = buffer,

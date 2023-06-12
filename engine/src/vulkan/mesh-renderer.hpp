@@ -5,12 +5,13 @@
 #include "assets/meshes/meshes.hpp"
 #include "uniform-buffer.hpp"
 #include "glm/gtx/transform.hpp"
+#include "texture.hpp"
 
 namespace geg::vulkan {
 	class MeshRenderer final: public Renderer {
 	public:
 		MeshRenderer(
-				std::shared_ptr<Device> device,
+				const std::shared_ptr<Device>& device,
 				std::shared_ptr<Swapchain> swapchain,
 				DepthResources depth_resources);
 
@@ -25,7 +26,13 @@ namespace geg::vulkan {
 		void init_pipeline();
 
 		// @TODO: remove this
-		Mesh* m = new Mesh("assets/meshes/teapot.gltf", m_device);
+		Mesh* m = new Mesh("assets/cerberus/mesh.fbx", m_device);
+		Texture albedo =
+				Texture(m_device, "assets/cerberus/albedo.tga", "albedo", vk::Format::eR8G8B8A8Srgb, 4);
+		Texture roughness =
+				Texture(m_device, "assets/cerberus/albedo.tga", "albedo", vk::Format::eR8Unorm, 1);
+		Texture metallic =
+				Texture(m_device, "assets/cerberus/albedo.tga", "albedo", vk::Format::eR8Unorm, 1);
 
 		struct {
 			glm::mat4 proj = glm::mat4(1);
@@ -42,16 +49,18 @@ namespace geg::vulkan {
 		} objec_data{};
 
 		struct {
-			glm::mat4 model = glm::rotate(glm::mat4(1), 3.140f, {0.0f, 0.0f, 1.0f});
-			glm::mat4 norm = glm::rotate(glm::mat4(1), 3.140f, {0.0f, 0.0f, 1.0f});
+			glm::mat4 model =
+					glm::rotate(glm::scale(glm::mat4(1), {0.03, 0.03, 0.03}), 3.140f, {1.0f, 0.0f, 1.0f});
+			glm::mat4 norm =
+					glm::rotate(glm::scale(glm::mat4(1), {33.3, 33.3, 33.3}), 3.140f, {1.0f, 0.0f, 1.0f});
 		} push_data{};
 
-		UnifromBuffer m_global_ubo{m_device, sizeof(global_data), 1};
-		UnifromBuffer m_object_ubo{m_device, sizeof(objec_data), 1};
+		UniformBuffer m_global_ubo{m_device, sizeof(global_data), 1};
+		UniformBuffer m_object_ubo{m_device, sizeof(objec_data), 1};
 
 		vk::Pipeline m_pipeline;
 		vk::PipelineLayout m_pipeline_layout;
-		Shader m_shader = Shader(m_device, "assets/shaders/flat.glsl", "mesh");
+		Shader m_shader = Shader(m_device, "assets/shaders/pbr.glsl", "pbr");
 	};
 
 }		 // namespace geg::vulkan
