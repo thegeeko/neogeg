@@ -5,7 +5,7 @@
 
 namespace geg::vulkan {
 	Texture::Texture(
-			const std::shared_ptr<Device>& device,
+			std::shared_ptr<Device> device,
 			fs::path image_path,
 			std::string image_name,
 			vk::Format format,
