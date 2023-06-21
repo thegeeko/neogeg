@@ -139,6 +139,7 @@ namespace geg {
 			if (!paused) {
 				m_camera_controller.update(Timer::delta(), {mouse_x, mouse_y}, is_pressed);
 				for(auto layer : m_layers){
+					layer->update(Timer::delta());
 					m_graphics_context->render(Camera{m_camera_controller}, &layer->scene, &asset_manager);
 				}
 			}

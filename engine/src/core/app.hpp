@@ -60,6 +60,7 @@ namespace geg {
 		static void init_logger();
 
 		AssetManager asset_manager;
+
 	private:
 		void init();
 		bool close(const WindowCloseEvent &e);

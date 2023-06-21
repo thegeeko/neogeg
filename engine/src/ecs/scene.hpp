@@ -14,7 +14,7 @@ namespace geg {
 		Entity create_entity(const std::string& name);
 		entt::registry& get_reg() { return registry; }
 
-		void for_each(std::function<void(Entity)> cb);
+		void for_each(std::function<void(Entity&)> cb);
 	private:
 		entt::registry registry;
 	};

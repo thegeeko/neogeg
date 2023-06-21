@@ -1,11 +1,12 @@
 #include "core/app.hpp"
 #include "core/layer.hpp"
+#include "debug/inspector.hpp"
 #include "ecs/entity.hpp"
 #include "ecs/components.hpp"
 
 class TestLayer: public geg::Layer {
-		public:
-	TestLayer(): geg::Layer("test") {}
+public:
+	TestLayer(): geg::Layer("test"), scene_hierarchy(scene) {}
 
 	void on_attach(geg::AssetManager& asset_manager) override {
 		namespace cmps = geg::components;
@@ -21,12 +22,20 @@ class TestLayer: public geg::Layer {
 		cerberus.add_component<cmps::Mesh>(mesh);
 		cerberus.add_component<cmps::Transform>();
 		cerberus.add_component<cmps::PBR>(albedo, metallic, roughness);
+
+		cerberus.get_component<cmps::Transform>().scale *= 0.03f;
 	};
 
 	void on_detach() override {}
-	void update(float ts) override {};
-	void ui(float ts) override {};
-	void on_event(geg::Event& event) override {};
+	void update(float ts) override {
+		scene_hierarchy.draw_panel();
+	};
+	void ui(float ts) override{};
+	void on_event(geg::Event& event) override{};
+
+	private:
+		geg::panels::Scene scene_hierarchy;
+
 };
 
 auto main() -> int {

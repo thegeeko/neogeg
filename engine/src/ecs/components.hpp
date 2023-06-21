@@ -10,6 +10,7 @@ namespace geg::components {
 		Name() = default;
 		Name(std::string name): name(std::move(name)){};
 		std::string name = "un-named";
+
 		operator const std::string&() const { return name; };
 		operator std::string() const { return name; };
 	};
