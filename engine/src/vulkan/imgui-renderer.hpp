@@ -10,7 +10,11 @@ namespace geg::vulkan {
 		~ImguiRenderer() override;
 
 		void fill_commands(
-				const vk::CommandBuffer& cmd, const Camera& camera, uint32_t frame_index) override;
+				const vk::CommandBuffer& cmd,
+				const Camera& camera,
+				uint32_t frame_index,
+				Scene* scene = nullptr,
+				AssetManager* asset_manager = nullptr) override;
 
 	private:
 		void create_descriptor_pool();

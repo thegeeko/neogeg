@@ -1,8 +1,10 @@
 #pragma once
 
+#include "assets/asset-manager.hpp"
 #include "vulkan/device.hpp"
 #include "vulkan/swapchain.hpp"
 #include "renderer/camera.hpp"
+#include "ecs/scene.hpp"
 
 namespace geg::vulkan {
 	struct DepthResources {
@@ -30,7 +32,11 @@ namespace geg::vulkan {
 		void resize(std::optional<DepthResources> depth_resources = {});
 
 		virtual void fill_commands(
-				const vk::CommandBuffer& cmd, const Camera& camera, uint32_t frame_index) = 0;
+				const vk::CommandBuffer& cmd,
+				const Camera& camera,
+				uint32_t frame_index,
+				Scene* scene = nullptr,
+				AssetManager* asset_manager = nullptr) = 0;
 
 	protected:
 		void begin(const vk::CommandBuffer& cmd, uint32_t image_index);

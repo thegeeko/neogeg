@@ -22,3 +22,6 @@
 [submodule "engine/lib/stb"]
 	path = engine/lib/stb
 	url = https://github.com/thegeeko/stb
+[submodule "engine/lib/entt"]
+	path = engine/lib/entt
+	url = https://github.com/skypjack/entt.git

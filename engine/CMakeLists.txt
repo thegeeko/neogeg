@@ -19,6 +19,7 @@ add_subdirectory("lib/glm")
 add_subdirectory("lib/vma-hpp")
 add_subdirectory("lib/imgui")
 add_subdirectory("lib/stb")
+add_subdirectory("lib/entt")
 # ===================================
 
 # =============== geg ==============
@@ -57,6 +58,7 @@ target_link_libraries(geg PUBLIC VulkanMemoryAllocator)
 target_link_libraries(geg PUBLIC imgui)
 target_link_libraries(geg PUBLIC stb)
 target_link_libraries(geg PUBLIC assimp)
+target_link_libraries(geg PUBLIC EnTT)
 
 # header only libs
 target_include_directories(geg PUBLIC "lib/vma-hpp/include")

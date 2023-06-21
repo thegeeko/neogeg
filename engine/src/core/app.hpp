@@ -1,5 +1,6 @@
 #pragma once
 
+#include "assets/asset-manager.hpp"
 #include "pch.hpp"
 
 #include "core/layer-stack.hpp"
@@ -42,13 +43,23 @@ namespace geg {
 			return {x, y};
 		}
 
-		void attach_layer(Layer *layer) { m_layers.pushLayer(layer); };
-		void attach_overlay(Layer *layer) { m_layers.popOverlay(layer); };
-		void detach(Layer *layer) { m_layers.popLayer(layer); };
+		void attach_layer(Layer *layer) {
+			layer->on_attach(asset_manager);
+			m_layers.pushLayer(layer);
+		};
+		void attach_overlay(Layer *layer) {
+			layer->on_attach(asset_manager);
+			m_layers.popOverlay(layer);
+		};
+		void detach(Layer *layer) {
+			layer->on_detach();
+			m_layers.popLayer(layer);
+		};
 
 		void run();
 		static void init_logger();
 
+		AssetManager asset_manager;
 	private:
 		void init();
 		bool close(const WindowCloseEvent &e);
@@ -61,8 +72,9 @@ namespace geg {
 
 		bool paused = false;
 		bool is_running = true;
-		std::shared_ptr<Window> m_window;
+
 		LayerStack m_layers;
+		std::shared_ptr<Window> m_window;
 		std::unique_ptr<VulkanContext> m_graphics_context;
 
 		// to be refactored

@@ -26,6 +26,7 @@ namespace geg {
 	void App::init() {
 		GEG_CORE_INFO("init app");
 		m_graphics_context = std::make_unique<VulkanContext>(m_window);
+		asset_manager = std::move(AssetManager(m_graphics_context->get_rendering_device()));
 		m_camera_controller =
 				CameraPositioner_FirstPerson(glm::vec3(0.f), {0.f, 0.f, -1.f}, {0.f, 1.f, 0.f});
 	}
@@ -58,6 +59,9 @@ namespace geg {
 		});
 
 		update_camera_controls(e);
+
+		for(auto layer: m_layers)
+			layer->on_event(e);
 
 		/* GEG_CORE_TRACE(e.to_string()); */
 	}
@@ -107,6 +111,8 @@ namespace geg {
 	}
 
 	void App::run() {
+		asset_manager.load_all();
+
 		while (is_running) {
 			Timer::update();
 			auto [mouse_x, mouse_y] = get_mouse_pos();
@@ -132,7 +138,9 @@ namespace geg {
 			m_window->poll_events();
 			if (!paused) {
 				m_camera_controller.update(Timer::delta(), {mouse_x, mouse_y}, is_pressed);
-				m_graphics_context->render(Camera{m_camera_controller});
+				for(auto layer : m_layers){
+					m_graphics_context->render(Camera{m_camera_controller}, &layer->scene, &asset_manager);
+				}
 			}
 		}
 	}

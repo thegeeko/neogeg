@@ -1,6 +1,7 @@
 #include "mesh-renderer.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "imgui.h"
+#include "ecs/components.hpp"
 
 namespace geg::vulkan {
 
@@ -13,32 +14,22 @@ namespace geg::vulkan {
 	}
 
 	MeshRenderer::~MeshRenderer() {
-		delete m;
 		m_device->vkdevice.destroyPipeline(m_pipeline);
 		m_device->vkdevice.destroyPipelineLayout(m_pipeline_layout);
 	}
 
 	void MeshRenderer::fill_commands(
-			const vk::CommandBuffer& cmd, const Camera& camera, uint32_t frame_index) {
+			const vk::CommandBuffer& cmd,
+			const Camera& camera,
+			uint32_t frame_index,
+			Scene* scene,
+			AssetManager* asset_manager) {
+		namespace cmps = components;
+		if (!scene || !asset_manager) return;
+
 		begin(cmd, frame_index);
-
-		global_data.proj = projection;
-		global_data.view = camera.view_matrix();
-		global_data.proj_view = projection * camera.view_matrix();
-		global_data.cam_pos = camera.position();
-
-		// update the ubos
-		m_global_ubo.write_at_frame(&global_data, sizeof(global_data), 0);
-		m_object_ubo.write_at_frame(&objec_data, sizeof(objec_data), 0);
-
-		ImGui::Begin("color");
-		ImGui::ColorPicker3("albedo", &objec_data.color[0]);
-		ImGui::DragFloat("metallic", &objec_data.metallic, 0.02f, 0, 1.0f);
-		ImGui::DragFloat("roughness", &objec_data.roughness, 0.02f, 0, 1.0f);
-		ImGui::DragFloat("ao", &objec_data.ao, 0.02f, 0, 1.0f);
-		ImGui::End();
-
 		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, m_pipeline);
+
 		cmd.setViewport(
 				0,
 				vk::Viewport{
@@ -49,40 +40,72 @@ namespace geg::vulkan {
 						.minDepth = 0,
 						.maxDepth = 1,
 				});
+
 		cmd.setScissor(
 				0,
 				vk::Rect2D{
 						.offset = {0},
 						.extent = m_swapchain->extent(),
 				});
-		cmd.pushConstants(
-				m_pipeline_layout, vk::ShaderStageFlagBits::eAllGraphics, 0, sizeof(push_data), &push_data);
 
-		std::array<vk::DescriptorSet, 6> sets = {
-				m_global_ubo.descriptor_set,
-				m_object_ubo.descriptor_set,
-				m->descriptor_set,
-				albedo.descriptor_set,
-				metallic.descriptor_set,
-				roughness.descriptor_set
-		};
+		global_data.proj = projection;
+		global_data.view = camera.view_matrix();
+		global_data.proj_view = projection * camera.view_matrix();
+		global_data.cam_pos = camera.position();
 
-		// ubos need the inflight frame index not the general frame index
-		std::array<uint32_t, 2> offsets = {
-				m_global_ubo.frame_offset(0),
-				m_object_ubo.frame_offset(0),
-		};
+		// update the ubos
+		m_global_ubo.write_at_frame(&global_data, sizeof(global_data), 0);
 
 		cmd.bindDescriptorSets(
 				vk::PipelineBindPoint::eGraphics,
 				m_pipeline_layout,
 				0,
-				sets.size(),
-				sets.data(),
-				offsets.size(),
-				offsets.data());
+				{m_global_ubo.descriptor_set},
+				{m_global_ubo.frame_offset(0)});
 
-		cmd.draw(m->indices_count(), 1, 0, 0);
+		const auto objects = scene->get_reg().group<cmps::PBR>(entt::get<cmps::Transform, cmps::Mesh>);
+
+		for (auto obj : objects) {
+			const auto& pbr_data = objects.get<cmps::PBR>(obj);
+			const auto& transform = objects.get<cmps::Transform>(obj);
+			const auto& mesh = objects.get<cmps::Mesh>(obj);
+
+			push_data.model = transform.model_matrix();
+			push_data.norm = transform.normal_matrix();
+
+			cmd.pushConstants(
+					m_pipeline_layout,
+					vk::ShaderStageFlagBits::eAllGraphics,
+					0,
+					sizeof(push_data),
+					&push_data);
+
+			objec_data.ao = pbr_data.AO;
+			m_object_ubo.write_at_frame(&objec_data, sizeof(objec_data), 0);
+
+			auto& mesh_descriptor = asset_manager->get_mesh(mesh.id).descriptor_set;
+			auto& albedo_descriptor = asset_manager->get_texture(pbr_data.albedo).descriptor_set;
+			auto& metallic_descriptor = asset_manager->get_texture(pbr_data.metallic).descriptor_set;
+			auto& roughness_descriptor = asset_manager->get_texture(pbr_data.roughness).descriptor_set;
+
+			cmd.bindDescriptorSets(
+					vk::PipelineBindPoint::eGraphics,
+					m_pipeline_layout,
+					1,
+					{
+							m_object_ubo.descriptor_set,
+							mesh_descriptor,
+							albedo_descriptor,
+							metallic_descriptor,
+							roughness_descriptor,
+					},
+					{
+							m_object_ubo.frame_offset(0),
+					});
+
+			uint32_t indcies_count = asset_manager->get_mesh(mesh.id).indices_count();
+			cmd.draw(indcies_count, 1, 0, 0);
+		}
 
 		cmd.endRenderPass();
 	}
@@ -167,13 +190,20 @@ namespace geg::vulkan {
 						.build_layout()
 						.value();
 
+		auto texture_layout =
+				m_device->build_descriptor()
+						.bind_image_layout(
+								0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eAllGraphics)
+						.build_layout()
+						.value();
+
 		const std::array<vk::DescriptorSetLayout, 6> layouts = {
 				gubo_layout,
 				oubo_layout,
 				geometry_layout,
-				albedo.descriptor_set_layout,
-				metallic.descriptor_set_layout,
-				roughness.descriptor_set_layout,
+				texture_layout,
+				texture_layout,
+				texture_layout,
 		};
 
 		m_pipeline_layout = m_device->vkdevice.createPipelineLayout(vk::PipelineLayoutCreateInfo{

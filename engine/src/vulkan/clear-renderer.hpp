@@ -1,5 +1,7 @@
 #pragma once
 
+#include "assets/asset-manager.hpp"
+#include "ecs/scene.hpp"
 #include "renderer.hpp"
 
 // @TODO refactor this to not be a renderer
@@ -17,7 +19,11 @@ namespace geg::vulkan {
 		~ClearRenderer() override = default;
 
 		void fill_commands(
-				const vk::CommandBuffer& cmd, const Camera& camera, uint32_t frame_index) override {
+				const vk::CommandBuffer& cmd,
+				const Camera& camera,
+				uint32_t frame_index,
+				Scene* scene = nullptr,
+				AssetManager* asset_manager = nullptr) override {
 			begin(cmd, frame_index);
 			cmd.endRenderPass();
 		}

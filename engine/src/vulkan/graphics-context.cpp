@@ -88,12 +88,12 @@ namespace geg {
 		});
 	}
 
-	void VulkanContext::render(const Camera& camera) {
+	void VulkanContext::render(const Camera& camera, Scene* scene, AssetManager* asset_manager) {
 		if (m_current_dimensions.first == 0 || m_current_dimensions.second == 0) return;
 
 		draw_debug_ui();
 
-		if(m_swapchain->present_mode() != m_debug_ui_settings.present_mode)
+		if (m_swapchain->present_mode() != m_debug_ui_settings.present_mode)
 			should_resize_swapchain = true;
 
 		if (should_resize_swapchain) {
@@ -131,15 +131,25 @@ namespace geg {
 		m_device->vkdevice.resetFences(m_swapchain_image_fences[m_current_image_index]);
 
 		m_mesh_renderer->projection = glm::perspective(
-				glm::radians(m_debug_ui_settings.fov), (float)m_current_dimensions.first / (float)m_current_dimensions.second, 0.1f, 100.f);
+				glm::radians(m_debug_ui_settings.fov),
+				(float)m_current_dimensions.first / (float)m_current_dimensions.second,
+				0.1f,
+				100.f);
+
 		auto cmd = m_command_buffers[m_current_image_index];
 		cmd.begin(vk::CommandBufferBeginInfo{});
+
 		m_clear_renderer->fill_commands(cmd, camera, m_current_image_index);
-		if (m_debug_ui_settings.mesh_renderer)
-			m_mesh_renderer->fill_commands(cmd, camera, m_current_image_index);
+
+		if (m_debug_ui_settings.mesh_renderer) {
+			m_mesh_renderer->fill_commands(cmd, camera, m_current_image_index, scene, asset_manager);
+		}
+
 		if (m_debug_ui_settings.imgui_renderer)
 			m_imgui_renderer->fill_commands(cmd, camera, m_current_image_index);
+
 		m_present_renderer->fill_commands(cmd, camera, m_current_image_index);
+
 		cmd.end();
 
 		vk::PipelineStageFlags pipeflg = vk::PipelineStageFlagBits::eColorAttachmentOutput;

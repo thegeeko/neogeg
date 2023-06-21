@@ -1,5 +1,7 @@
 #pragma once
 
+#include "assets/asset-manager.hpp"
+#include "ecs/scene.hpp"
 #include "renderer.hpp"
 #include "shader.hpp"
 #include "assets/meshes/meshes.hpp"
@@ -18,21 +20,16 @@ namespace geg::vulkan {
 		~MeshRenderer() override;
 
 		void fill_commands(
-				const vk::CommandBuffer& cmd, const Camera& camera, uint32_t frame_index) override;
+				const vk::CommandBuffer& cmd,
+				const Camera& camera,
+				uint32_t frame_index,
+				Scene* scene,
+				AssetManager* asset_manager) override;
 
 		glm::mat4 projection = glm::mat4(1);
 
 	private:
 		void init_pipeline();
-
-		// @TODO: remove this
-		Mesh* m = new Mesh("assets/cerberus/mesh.fbx", m_device);
-		Texture albedo =
-				Texture(m_device, "assets/cerberus/albedo.tga", "albedo", vk::Format::eR8G8B8A8Srgb, 4);
-		Texture roughness =
-				Texture(m_device, "assets/cerberus/albedo.tga", "albedo", vk::Format::eR8Unorm, 1);
-		Texture metallic =
-				Texture(m_device, "assets/cerberus/albedo.tga", "albedo", vk::Format::eR8Unorm, 1);
 
 		struct {
 			glm::mat4 proj = glm::mat4(1);

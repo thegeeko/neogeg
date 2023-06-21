@@ -1,3 +1,6 @@
+#pragma once
+
+#include <vulkan/vulkan_core.h>
 #include "device.hpp"
 #include "utils/filesystem.hpp"
 
@@ -11,24 +14,34 @@ namespace geg::vulkan {
 				vk::Format format,
 				uint32_t channels);
 
-			Texture(Texture&& other) {
-				descriptor_set = other.descriptor_set;
-				descriptor_set_layout = other.descriptor_set_layout;
+		Texture(Texture&) = delete;
+		Texture(Texture&& other) {
+			m_width = other.m_width;
+			m_height = other.m_height;
+			m_file_channels = other.m_file_channels;
+			m_channels = other.m_channels;
+			m_size = other.m_size;
 
-				m_width = other.m_width;
-				m_height = other.m_height;
-				m_file_channels = other.m_file_channels;
-				m_channels = other.m_channels;
-				m_size = other.m_size;
-				m_path = std::move(other.m_path);
-				m_name = std::move(other.m_name);
-				m_format = other.m_format;
-				m_alloc = std::move(other.m_alloc);
-				m_image = std::move(other.m_image);
-				m_image_view = other.m_image_view;
-				m_sampler = other.m_sampler;
-				m_device = other.m_device;
-			};
+			m_path = std::move(other.m_path);
+			m_name = std::move(other.m_name);
+
+			m_format = other.m_format;
+			m_alloc = std::move(other.m_alloc);
+			m_image = std::move(other.m_image);
+			m_image_view = std::move(other.m_image_view);
+			m_sampler = std::move(other.m_sampler);
+			m_device = other.m_device;
+
+			descriptor_set = other.descriptor_set;
+			descriptor_set_layout = other.descriptor_set_layout;
+
+			other.m_image = VK_NULL_HANDLE;
+			other.m_image_view = VK_NULL_HANDLE;
+			other.m_sampler = VK_NULL_HANDLE;
+			other.m_alloc = VK_NULL_HANDLE;
+
+			other.m_name = "moved texture";
+		}
 
 		~Texture();
 
@@ -46,8 +59,8 @@ namespace geg::vulkan {
 		std::string m_name;
 		vk::Format m_format;
 
-		vma::UniqueAllocation m_alloc;
-		vma::UniqueImage m_image;
+		vma::Allocation m_alloc;
+		vk::Image m_image;
 		vk::ImageView m_image_view;
 		vk::Sampler m_sampler;
 

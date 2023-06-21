@@ -15,8 +15,8 @@ namespace geg {
 	class Camera {
 	public:
 		explicit Camera(CameraPositionerInterface& positioner): m_positioner(positioner) {}
-		glm::mat4 view_matrix() const { return m_positioner.view_matrix(); }
-		glm::vec3 position() const { return m_positioner.position(); }
+		inline glm::mat4 view_matrix() const { return m_positioner.view_matrix(); }
+		inline glm::vec3 position() const { return m_positioner.position(); }
 
 	private:
 		CameraPositionerInterface& m_positioner;

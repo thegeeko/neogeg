@@ -13,7 +13,11 @@ namespace geg::vulkan {
 		~PresentRenderer() override = default;
 
 		void fill_commands(
-				const vk::CommandBuffer& cmd, const Camera& camera, uint32_t frame_index) override {
+				const vk::CommandBuffer& cmd,
+				const Camera& camera,
+				uint32_t frame_index,
+				Scene* scene = nullptr,
+				AssetManager* asset_manager = nullptr) override {
 			begin(cmd, frame_index);
 			cmd.endRenderPass();
 		}

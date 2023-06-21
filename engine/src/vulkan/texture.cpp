@@ -39,12 +39,12 @@ namespace geg::vulkan {
 
 		const auto alloc_info = vma::AllocationCreateInfo{.usage = vma::MemoryUsage::eGpuOnly};
 
-		auto [image, alloc] = m_device->allocator.createImageUnique(image_info, alloc_info);
+		auto [image, alloc] = m_device->allocator.createImage(image_info, alloc_info);
 		m_image = std::move(image);
 		m_alloc = std::move(alloc);
 
 		m_device->upload_to_image(
-				m_image.get(),
+				m_image,
 				vk::ImageLayout::eShaderReadOnlyOptimal,
 				m_format,
 				extent,
@@ -54,7 +54,7 @@ namespace geg::vulkan {
 		stbi_image_free((void*)image_data);
 
 		const vk::ImageViewCreateInfo view_info{
-				.image = m_image.get(),
+				.image = m_image,
 				.viewType = vk::ImageViewType::e2D,
 				.format = m_format,
 				.subresourceRange{
@@ -108,6 +108,7 @@ namespace geg::vulkan {
 
 	Texture::~Texture() {
 		GEG_CORE_WARN("destroying texture: {}", m_name);
+		m_device->allocator.destroyImage(m_image, m_alloc);
 		m_device->vkdevice.destroy(m_image_view);
 		m_device->vkdevice.destroy(m_sampler);
 	}

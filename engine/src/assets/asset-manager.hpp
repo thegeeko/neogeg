@@ -1,21 +1,27 @@
 #pragma once
 
+#include <memory>
 #include "meshes/meshes.hpp"
 #include "vulkan/device.hpp"
 #include "vulkan/texture.hpp"
 
 namespace geg {
+	using MeshId = uint32_t;
+	using TextureId = uint32_t;
+
 	class AssetManager {
 	public:
-		AssetManager(std::shared_ptr<vulkan::Device> device): m_device(device){};
+		AssetManager() = default;
+		AssetManager(std::shared_ptr<vulkan::Device> device): m_device(device){
+		};
 
-		uint32_t enqueue_mesh(fs::path mesh_path) {
+		MeshId enqueue_mesh(fs::path mesh_path) {
 			uint32_t id = m_meshs_to_load.size();
 			m_meshs_to_load.push_back(mesh_path);
 			return id;
 		};
 
-		uint32_t enqueue_texture(fs::path texture_path, bool color_data, uint32_t channels) {
+		TextureId enqueue_texture(fs::path texture_path, bool color_data, uint32_t channels) {
 			uint32_t id = m_textures_to_load.size();
 
 			m_textures_to_load.push_back({
@@ -52,7 +58,7 @@ namespace geg {
 			GEG_CORE_ASSERT(!m_meshs_loaded, "Trying to load meshs more than once");
 
 			for (auto& mesh_path : m_meshs_to_load)
-				meshs.emplace_back(mesh_path, m_device);
+				m_meshs.emplace_back(mesh_path, m_device);
 
 			m_meshs_loaded = true;
 		};
@@ -61,6 +67,10 @@ namespace geg {
 			load_meshs();
 			load_textures();
 		}
+
+		const vulkan::Mesh& get_mesh(MeshId id) { return m_meshs[id]; }
+
+		const vulkan::Texture& get_texture(TextureId id) { return m_textures[id]; }
 
 	private:
 		struct TextureInfo {
@@ -73,7 +83,7 @@ namespace geg {
 		bool m_textures_loaded = false;
 		// to do make this big continuos buffer
 		std::vector<fs::path> m_meshs_to_load;
-		std::vector<vulkan::Mesh> meshs;
+		std::vector<vulkan::Mesh> m_meshs;
 		std::vector<TextureInfo> m_textures_to_load;
 		std::vector<vulkan::Texture> m_textures;
 		std::shared_ptr<vulkan::Device> m_device;

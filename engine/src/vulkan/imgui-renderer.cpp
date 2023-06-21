@@ -15,7 +15,7 @@ namespace geg::vulkan {
 		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 		io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-//		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+		//		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 		io.Fonts->AddFontFromFileTTF("assets/fonts/mononoki.ttf", 13);
 
 		create_descriptor_pool();
@@ -58,7 +58,11 @@ namespace geg::vulkan {
 	}
 
 	void ImguiRenderer::fill_commands(
-			const vk::CommandBuffer& cmd, const Camera& camera, uint32_t frame_index) {
+			const vk::CommandBuffer& cmd,
+			const Camera& camera,
+			uint32_t frame_index,
+			Scene* scene,
+			AssetManager* asset_manager) {
 		begin(cmd, frame_index);
 		ImGuiIO& io = ImGui::GetIO();
 		io.DisplaySize = ImVec2(

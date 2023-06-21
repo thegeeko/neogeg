@@ -1,8 +1,8 @@
 #pragma once
 
+#include "assets/asset-manager.hpp"
 #include "clear-renderer.hpp"
 #include "imgui-renderer.hpp"
-#include "pch.hpp"
 #include "present-renderer.hpp"
 #include "core/window.hpp"
 #include "events/events.hpp"
@@ -12,6 +12,7 @@
 #include "vulkan/device.hpp"
 #include "vulkan/swapchain.hpp"
 #include "mesh-renderer.hpp"
+#include "ecs/scene.hpp"
 
 namespace geg {
 	class VulkanContext {
@@ -19,7 +20,7 @@ namespace geg {
 		VulkanContext(std::shared_ptr<Window> window);
 		~VulkanContext();
 
-		void render(const Camera& camera);
+		void render(const Camera& camera, Scene* scene, AssetManager* asset_man);
 		bool resize(const WindowResizeEvent& new_dim) {
 			m_current_dimensions = {new_dim.width(), new_dim.height()};
 			should_resize_swapchain = true;
@@ -38,6 +39,8 @@ namespace geg {
 
 		// @TODO fix hard-coding depth format
 		const vk::Format depth_format = vk::Format::eD32SfloatS8Uint;
+
+		std::shared_ptr<vulkan::Device> get_rendering_device() { return m_device; };
 
 	private:
 		void create_depth_resources();
