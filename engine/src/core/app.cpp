@@ -1,5 +1,6 @@
 #include "app.hpp"
 
+#include "assets/asset-manager.hpp"
 #include "core/window.hpp"
 #include "events/base-event.hpp"
 #include "events/events.hpp"
@@ -20,13 +21,15 @@ namespace geg {
 	}
 
 	App::~App() {
+		m_graphics_context->wait_until_free();
+		AssetManager::get().deinit();
 		GEG_CORE_WARN("destroying app");
 	}
 
 	void App::init() {
 		GEG_CORE_INFO("init app");
 		m_graphics_context = std::make_unique<VulkanContext>(m_window);
-		asset_manager = std::move(AssetManager(m_graphics_context->get_rendering_device()));
+		AssetManager::init(m_graphics_context->get_rendering_device());
 		m_camera_controller =
 				CameraPositioner_FirstPerson(glm::vec3(0.f), {0.f, 0.f, -1.f}, {0.f, 1.f, 0.f});
 	}
@@ -111,7 +114,7 @@ namespace geg {
 	}
 
 	void App::run() {
-		asset_manager.load_all();
+		AssetManager::get().load_all();
 
 		while (is_running) {
 			Timer::update();
@@ -140,7 +143,7 @@ namespace geg {
 				m_camera_controller.update(Timer::delta(), {mouse_x, mouse_y}, is_pressed);
 				for(auto layer : m_layers){
 					layer->update(Timer::delta());
-					m_graphics_context->render(Camera{m_camera_controller}, &layer->scene, &asset_manager);
+					m_graphics_context->render(Camera{m_camera_controller}, &layer->scene);
 				}
 			}
 		}

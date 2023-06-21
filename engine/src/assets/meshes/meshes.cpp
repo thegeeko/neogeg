@@ -6,6 +6,7 @@
 namespace geg::vulkan {
 	Mesh::Mesh(const fs::path& path, const std::shared_ptr<Device>& device) {
 		m_device = device;
+		m_path = path;
 		Assimp::Importer importer;
 		const aiScene* scene = importer.ReadFile(
 				path.string(),

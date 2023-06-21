@@ -12,7 +12,7 @@ namespace geg {
 		Layer(const std::string &name = "Layer"): m_debug_name(name){};
 		virtual ~Layer() = default;
 
-		virtual void on_attach(AssetManager& asset_manager) = 0;
+		virtual void on_attach() = 0;
 		virtual void on_detach() = 0;
 		virtual void update(float ts) = 0;
 		virtual void ui(float ts) = 0;

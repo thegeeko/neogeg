@@ -11,11 +11,13 @@ LayerStack::~LayerStack() {
 }
 
 void LayerStack::pushLayer(Layer *layer) {
+	layer->on_attach();
   layers.emplace(layers.begin() + layerInsertIndex, layer);
   layerInsertIndex++;
 }
 
 void LayerStack::pushOverlay(Layer *overlay) {
+	overlay->on_attach();
   layers.emplace_back(overlay);
 }
 

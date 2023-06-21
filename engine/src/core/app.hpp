@@ -44,11 +44,9 @@ namespace geg {
 		}
 
 		void attach_layer(Layer *layer) {
-			layer->on_attach(asset_manager);
 			m_layers.pushLayer(layer);
 		};
 		void attach_overlay(Layer *layer) {
-			layer->on_attach(asset_manager);
 			m_layers.popOverlay(layer);
 		};
 		void detach(Layer *layer) {
@@ -58,8 +56,6 @@ namespace geg {
 
 		void run();
 		static void init_logger();
-
-		AssetManager asset_manager;
 
 	private:
 		void init();

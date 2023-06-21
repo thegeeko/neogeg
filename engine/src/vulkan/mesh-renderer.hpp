@@ -23,8 +23,7 @@ namespace geg::vulkan {
 				const vk::CommandBuffer& cmd,
 				const Camera& camera,
 				uint32_t frame_index,
-				Scene* scene,
-				AssetManager* asset_manager) override;
+				Scene* scene) override;
 
 		glm::mat4 projection = glm::mat4(1);
 

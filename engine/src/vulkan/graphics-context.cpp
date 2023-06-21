@@ -88,7 +88,8 @@ namespace geg {
 		});
 	}
 
-	void VulkanContext::render(const Camera& camera, Scene* scene, AssetManager* asset_manager) {
+	void VulkanContext::render(const Camera& camera, Scene* scene) {
+
 		if (m_current_dimensions.first == 0 || m_current_dimensions.second == 0) return;
 
 		draw_debug_ui();
@@ -142,7 +143,7 @@ namespace geg {
 		m_clear_renderer->fill_commands(cmd, camera, m_current_image_index);
 
 		if (m_debug_ui_settings.mesh_renderer) {
-			m_mesh_renderer->fill_commands(cmd, camera, m_current_image_index, scene, asset_manager);
+			m_mesh_renderer->fill_commands(cmd, camera, m_current_image_index, scene);
 		}
 
 		if (m_debug_ui_settings.imgui_renderer)

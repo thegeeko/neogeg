@@ -35,8 +35,7 @@ namespace geg::vulkan {
 				const vk::CommandBuffer& cmd,
 				const Camera& camera,
 				uint32_t frame_index,
-				Scene* scene = nullptr,
-				AssetManager* asset_manager = nullptr) = 0;
+				Scene* scene = nullptr) = 0;
 
 	protected:
 		void begin(const vk::CommandBuffer& cmd, uint32_t image_index);

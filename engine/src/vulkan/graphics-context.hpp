@@ -1,5 +1,6 @@
 #pragma once
 
+#include <sys/types.h>
 #include "assets/asset-manager.hpp"
 #include "clear-renderer.hpp"
 #include "imgui-renderer.hpp"
@@ -20,7 +21,7 @@ namespace geg {
 		VulkanContext(std::shared_ptr<Window> window);
 		~VulkanContext();
 
-		void render(const Camera& camera, Scene* scene, AssetManager* asset_man);
+		void render(const Camera& camera, Scene* scene);
 		bool resize(const WindowResizeEvent& new_dim) {
 			m_current_dimensions = {new_dim.width(), new_dim.height()};
 			should_resize_swapchain = true;
@@ -41,6 +42,7 @@ namespace geg {
 		const vk::Format depth_format = vk::Format::eD32SfloatS8Uint;
 
 		std::shared_ptr<vulkan::Device> get_rendering_device() { return m_device; };
+		void wait_until_free() { m_device->vkdevice.waitIdle(); };
 
 	private:
 		void create_depth_resources();

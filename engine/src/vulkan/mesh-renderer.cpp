@@ -1,4 +1,5 @@
 #include "mesh-renderer.hpp"
+#include "assets/asset-manager.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "imgui.h"
 #include "ecs/components.hpp"
@@ -22,10 +23,11 @@ namespace geg::vulkan {
 			const vk::CommandBuffer& cmd,
 			const Camera& camera,
 			uint32_t frame_index,
-			Scene* scene,
-			AssetManager* asset_manager) {
+			Scene* scene) {
 		namespace cmps = components;
-		if (!scene || !asset_manager) return;
+		if (!scene) return;
+
+		auto& asset_manager = AssetManager::get();
 
 		begin(cmd, frame_index);
 		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, m_pipeline);
@@ -83,10 +85,10 @@ namespace geg::vulkan {
 			objec_data.ao = pbr_data.AO;
 			m_object_ubo.write_at_frame(&objec_data, sizeof(objec_data), 0);
 
-			auto& mesh_descriptor = asset_manager->get_mesh(mesh.id).descriptor_set;
-			auto& albedo_descriptor = asset_manager->get_texture(pbr_data.albedo).descriptor_set;
-			auto& metallic_descriptor = asset_manager->get_texture(pbr_data.metallic).descriptor_set;
-			auto& roughness_descriptor = asset_manager->get_texture(pbr_data.roughness).descriptor_set;
+			auto& mesh_descriptor = asset_manager.get_mesh(mesh.id).descriptor_set;
+			auto& albedo_descriptor = asset_manager.get_texture(pbr_data.albedo).descriptor_set;
+			auto& metallic_descriptor = asset_manager.get_texture(pbr_data.metallic).descriptor_set;
+			auto& roughness_descriptor = asset_manager.get_texture(pbr_data.roughness).descriptor_set;
 
 			cmd.bindDescriptorSets(
 					vk::PipelineBindPoint::eGraphics,
@@ -103,7 +105,7 @@ namespace geg::vulkan {
 							m_object_ubo.frame_offset(0),
 					});
 
-			uint32_t indcies_count = asset_manager->get_mesh(mesh.id).indices_count();
+			uint32_t indcies_count = asset_manager.get_mesh(mesh.id).indices_count();
 			cmd.draw(indcies_count, 1, 0, 0);
 		}
 

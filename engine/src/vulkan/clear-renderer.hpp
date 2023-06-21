@@ -22,8 +22,7 @@ namespace geg::vulkan {
 				const vk::CommandBuffer& cmd,
 				const Camera& camera,
 				uint32_t frame_index,
-				Scene* scene = nullptr,
-				AssetManager* asset_manager = nullptr) override {
+				Scene* scene = nullptr) override {
 			begin(cmd, frame_index);
 			cmd.endRenderPass();
 		}

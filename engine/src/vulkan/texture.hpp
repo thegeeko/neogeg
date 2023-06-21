@@ -47,6 +47,7 @@ namespace geg::vulkan {
 
 		vk::DescriptorSet descriptor_set;
 		vk::DescriptorSetLayout descriptor_set_layout;
+		std::string name() const { return m_name; }
 
 	private:
 		int32_t m_width = 0;

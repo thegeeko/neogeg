@@ -1,3 +1,4 @@
+#include "assets/asset-manager.hpp"
 #include "core/app.hpp"
 #include "core/layer.hpp"
 #include "debug/inspector.hpp"
@@ -8,8 +9,9 @@ class TestLayer: public geg::Layer {
 public:
 	TestLayer(): geg::Layer("test"), scene_hierarchy(scene) {}
 
-	void on_attach(geg::AssetManager& asset_manager) override {
+	void on_attach() override {
 		namespace cmps = geg::components;
+		auto& asset_manager = geg::AssetManager::get();
 
 		geg::MeshId mesh = asset_manager.enqueue_mesh("assets/cerberus/mesh.fbx");
 		geg::TextureId albedo = asset_manager.enqueue_texture("assets/cerberus/albedo.tga", true, 4);

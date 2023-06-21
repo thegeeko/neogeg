@@ -61,8 +61,7 @@ namespace geg::vulkan {
 			const vk::CommandBuffer& cmd,
 			const Camera& camera,
 			uint32_t frame_index,
-			Scene* scene,
-			AssetManager* asset_manager) {
+			Scene* scene) {
 		begin(cmd, frame_index);
 		ImGuiIO& io = ImGui::GetIO();
 		io.DisplaySize = ImVec2(

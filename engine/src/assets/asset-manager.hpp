@@ -11,9 +11,28 @@ namespace geg {
 
 	class AssetManager {
 	public:
-		AssetManager() = default;
-		AssetManager(std::shared_ptr<vulkan::Device> device): m_device(device){
+		AssetManager(AssetManager&) = delete;
+
+		static void init(std::shared_ptr<vulkan::Device> device) {
+			GEG_CORE_ASSERT(!m_instance.m_inited, "Trying to init asset manager more than once!");
+			m_instance.m_inited = true;
+			m_instance.m_device = device;
 		};
+
+		static AssetManager& get() { return m_instance; };
+
+		void deinit() {
+			m_meshs.clear();
+			m_meshs_to_load.clear();
+			m_meshs_loaded = false;
+
+			m_textures.clear();
+			m_textures_to_load.clear();
+			m_textures_loaded = false;
+
+			m_device = nullptr;
+			m_inited = false;
+		}
 
 		MeshId enqueue_mesh(fs::path mesh_path) {
 			uint32_t id = m_meshs_to_load.size();
@@ -34,7 +53,7 @@ namespace geg {
 		};
 
 		void load_textures() {
-			GEG_CORE_ASSERT(!m_textures_loaded, "Trying to load meshs more than once");
+			GEG_CORE_ASSERT(!m_textures_loaded, "Trying to load textures more than once!");
 
 			for (auto& tex_info : m_textures_to_load) {
 				vk::Format format;
@@ -55,7 +74,7 @@ namespace geg {
 		};
 
 		void load_meshs() {
-			GEG_CORE_ASSERT(!m_meshs_loaded, "Trying to load meshs more than once");
+			GEG_CORE_ASSERT(!m_meshs_loaded, "Trying to load meshs more than once!");
 
 			for (auto& mesh_path : m_meshs_to_load)
 				m_meshs.emplace_back(mesh_path, m_device);
@@ -69,10 +88,15 @@ namespace geg {
 		}
 
 		const vulkan::Mesh& get_mesh(MeshId id) { return m_meshs[id]; }
-
 		const vulkan::Texture& get_texture(TextureId id) { return m_textures[id]; }
+		const std::string get_mesh_name(MeshId id) const { return m_meshs[id].name(); }
+		const std::string get_texture_name(TextureId id) const { return m_textures[id].name(); }
 
 	private:
+		AssetManager() = default;
+		bool m_inited = false;
+		static AssetManager m_instance;
+
 		struct TextureInfo {
 			fs::path path;
 			bool color = false;

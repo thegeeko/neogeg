@@ -28,11 +28,11 @@ namespace geg::vulkan {
 		vk::DescriptorSetLayout descriptor_set_layout;
 
 		vk::Buffer buffer;
-		fs::path path() { return m_path; };
+		fs::path path() const { return m_path; };
+		std::string name() const { return m_path.filename().string(); }
 		uint32_t indices_count() const { return (size - index_offset) / sizeof(uint32_t); };
 
 	private:
-
 		std::shared_ptr<Device> m_device;
 		vma::Allocation m_alloc;
 		fs::path m_path;

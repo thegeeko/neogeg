@@ -13,8 +13,7 @@ namespace geg::vulkan {
 				const vk::CommandBuffer& cmd,
 				const Camera& camera,
 				uint32_t frame_index,
-				Scene* scene = nullptr,
-				AssetManager* asset_manager = nullptr) override;
+				Scene* scene = nullptr) override;
 
 	private:
 		void create_descriptor_pool();
