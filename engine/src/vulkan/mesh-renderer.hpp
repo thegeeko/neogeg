@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include "assets/asset-manager.hpp"
 #include "ecs/scene.hpp"
 #include "renderer.hpp"
@@ -30,17 +31,24 @@ namespace geg::vulkan {
 	private:
 		void init_pipeline();
 
+		struct Light {
+			glm::vec4 pos{0};
+			glm::vec4 color{0};
+		};
+
 		struct {
 			glm::mat4 proj = glm::mat4(1);
 			glm::mat4 view = glm::mat4(1);
 			glm::mat4 proj_view = glm::mat4(1);
 			glm::vec3 cam_pos = glm::vec3(0);
+			uint32_t lights_count = 0;
+			Light lights[100];
 		} global_data{};
 
 		struct {
-			glm::vec3 color = glm::vec4(1);
-			float metallic = 1.0f;
-			float roughness = 1.0f;
+			uint32_t albedo_only = false;
+			uint32_t metallic_only = false;
+			uint32_t roughness_only = false;
 			float ao = 1.0f;
 		} objec_data{};
 

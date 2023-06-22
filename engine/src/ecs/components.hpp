@@ -1,6 +1,7 @@
 #pragma once
 
 #include "assets/asset-manager.hpp"
+#include "glm/fwd.hpp"
 #include "pch.hpp"
 #include "glm/glm.hpp"
 #include "glm/ext/matrix_transform.hpp"
@@ -52,6 +53,11 @@ namespace geg::components {
 		TextureId albedo;
 		TextureId roughness;
 		TextureId metallic;
+
+		bool albedo_only = false;
+		bool roughness_only = false;
+		bool metallic_only = false;
+
 		float AO = 0.0f;
 
 		PBR(TextureId albedo, TextureId metallic, TextureId roughness):
@@ -59,6 +65,6 @@ namespace geg::components {
 	};
 
 	struct Light {
-		float intensity = 300.0f;
+		glm::vec4 light_color{1.0f};
 	};
 }		 // namespace geg::components

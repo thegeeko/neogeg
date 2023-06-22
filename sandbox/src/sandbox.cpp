@@ -26,6 +26,10 @@ public:
 		cerberus.add_component<cmps::PBR>(albedo, metallic, roughness);
 
 		cerberus.get_component<cmps::Transform>().scale *= 0.03f;
+
+		geg::Entity light = scene.create_entity("light");
+		light.add_component<cmps::Light>();
+		light.add_component<cmps::Transform>();
 	};
 
 	void on_detach() override {}

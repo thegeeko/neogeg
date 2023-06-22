@@ -20,10 +20,7 @@ namespace geg::vulkan {
 	}
 
 	void MeshRenderer::fill_commands(
-			const vk::CommandBuffer& cmd,
-			const Camera& camera,
-			uint32_t frame_index,
-			Scene* scene) {
+			const vk::CommandBuffer& cmd, const Camera& camera, uint32_t frame_index, Scene* scene) {
 		namespace cmps = components;
 		if (!scene) return;
 
@@ -49,6 +46,22 @@ namespace geg::vulkan {
 						.offset = {0},
 						.extent = m_swapchain->extent(),
 				});
+
+		const auto& light_view = scene->get_reg().view<cmps::Light, cmps::Transform>();
+		uint32_t i = 0;
+		for (auto& light : light_view) {
+			auto& light_color = light_view.get<cmps::Light>(light).light_color;
+			auto& pos = light_view.get<cmps::Transform>(light).translation;
+
+			global_data.lights[i] = {
+					.pos = {pos, 1.0f},
+					.color = light_color,
+			};
+
+			i++;
+		}
+
+		global_data.lights_count = i;
 
 		global_data.proj = projection;
 		global_data.view = camera.view_matrix();
@@ -82,7 +95,11 @@ namespace geg::vulkan {
 					sizeof(push_data),
 					&push_data);
 
+			objec_data.albedo_only = pbr_data.albedo_only;
+			objec_data.metallic_only = pbr_data.metallic_only;
+			objec_data.roughness_only = pbr_data.roughness_only;
 			objec_data.ao = pbr_data.AO;
+
 			m_object_ubo.write_at_frame(&objec_data, sizeof(objec_data), 0);
 
 			auto& mesh_descriptor = asset_manager.get_mesh(mesh.id).descriptor_set;

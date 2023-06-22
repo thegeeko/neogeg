@@ -7,17 +7,27 @@ struct VertexData {
 	float u, v;
 };
 
+
+struct Light {
+	vec3 pos;
+	vec4 color;
+};
+
+const uint MAX_NUM_OF_LIGHTS = 100;
+
 layout (set = 0, binding = 0) uniform GlobalUbo {
 	mat4 proj;
 	mat4 view;
 	mat4 proj_view;
 	vec3 cam_pos;
+	uint num_of_lights;
+	Light lights[MAX_NUM_OF_LIGHTS];
 } gubo;
 
 layout (set = 1, binding = 0) uniform ObjectUbo {
-	vec3 albedo;
-	float metallic;
-	float roughness;
+	bool albedo_only;
+	bool metallic_only;
+	bool roughness_only;
 	float ao;
 } oubo;
 
@@ -111,6 +121,21 @@ void main() {
 	float metallic = texture(tex_metalic, i_uv).r;
 	float roughness = texture(tex_roughness, i_uv).r;
 
+	if(oubo.albedo_only) {
+			outFragColor = vec4(albedo, 1.0f);
+			return;
+	}
+
+	if (oubo.metallic_only) {
+			outFragColor = vec4(metallic, metallic, metallic, 1.0f);
+			return;
+	}
+
+	if (oubo.roughness_only) {
+			outFragColor = vec4(roughness, roughness, roughness, 1.0f);
+			return;
+	}
+
 
 	vec3 ws_pos = i_world_pos;
 	vec3 ws_norm = normalize(i_world_norm);
@@ -121,14 +146,13 @@ void main() {
 	vec3 lightPositions[4] = vec3[](vec3(0, 0, 10.0f), vec3(0, -3.0f, 15.0f), vec3(6.0f, 0, 15.0f), vec3(-3.0f, 0, 15.0f));
 
 	vec3 Lo = vec3(0.0);
-	for (int i = 0; i < 4; ++i)
-	{
-		vec3 L = normalize(lightPositions[i] - ws_pos);
+	for (int i = 0; i < gubo.num_of_lights; ++i) {
+		vec3 L = normalize(gubo.lights[i].pos - ws_pos);
 		vec3 H = normalize(obj_dir + L);
 
-		float distance = length(lightPositions[i] - ws_pos);
+		float distance = length(gubo.lights[i].pos - ws_pos);
 		float attenuation = 1.0 / (distance * distance);
-		vec3 radiance = vec3(300.0f, 300.0f, 300.0f) * attenuation;
+		vec3 radiance = gubo.lights[i].color.rgb * gubo.lights[i].color.a * attenuation;
 
 		float NDF = distributionGGX(ws_norm, H, roughness);
 		float G = geometry_smith(ws_norm, ws_pos, L, roughness);
