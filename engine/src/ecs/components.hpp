@@ -45,23 +45,30 @@ namespace geg::components {
 	};
 
 	struct Mesh {
+		Mesh() = default;
 		Mesh(MeshId id): id(id) {}
-		MeshId id;
+
+		operator bool() const { return id > -1; }
+
+		MeshId id = -1;
 	};
 
 	struct PBR {
-		TextureId albedo;
-		TextureId roughness;
-		TextureId metallic;
+		PBR() = default;
+		PBR(TextureId albedo, TextureId metallic, TextureId roughness):
+				albedo(albedo), roughness(roughness), metallic(metallic) {}
+
+		operator bool() const { return albedo > -1 && roughness > -1 && metallic > -1; }
+
+		TextureId albedo = -1;
+		TextureId roughness = -1;
+		TextureId metallic = -1;
 
 		bool albedo_only = false;
 		bool roughness_only = false;
 		bool metallic_only = false;
 
 		float AO = 0.0f;
-
-		PBR(TextureId albedo, TextureId metallic, TextureId roughness):
-				albedo(albedo), roughness(roughness), metallic(metallic) {}
 	};
 
 	struct Light {

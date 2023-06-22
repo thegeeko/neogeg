@@ -28,6 +28,7 @@ namespace geg {
 
 		operator bool() const { return m_handle != entt::null && m_scene; }
 		operator uint32_t() const { return (uint32_t)m_handle; }
+			operator entt::entity() const {return m_handle;}
 
 		bool operator==(const Entity& other) const {
 			return other.m_handle == m_handle && other.m_scene == m_scene;

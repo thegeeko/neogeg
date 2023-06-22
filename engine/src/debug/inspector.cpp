@@ -126,13 +126,40 @@ namespace geg {
 				const bool opened = ImGui::TreeNodeEx((void*)(uint64_t)(uint32_t)entity, flags, "%s", name);
 				if (ImGui::IsItemClicked()) selected_entity = entity;
 				if (opened) ImGui::TreePop();
+				if (ImGui::BeginPopupContextItem(0, 1)) {
+					if (ImGui::MenuItem("Delete")) m_scene.delete_entity(entity);
+
+					ImGui::EndPopup();
+				}
 			});
 
 			if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered()) selected_entity = {};
+
+			ImGuiPopupFlags popup_flags = ImGuiPopupFlags_NoOpenOverItems;
+			popup_flags |= ImGuiPopupFlags_MouseButtonRight;
+			popup_flags |= ImGuiPopupFlags_NoOpenOverExistingPopup;
+
+			if (ImGui::BeginPopupContextWindow(0, popup_flags)) {
+				if (ImGui::MenuItem("New entity")) m_scene.create_entity();
+
+				ImGui::EndPopup();
+			}
+
 			ImGui::End();
 
 			ImGui::Begin("Components");
-			draw_entity(selected_entity);
+			if (selected_entity) {
+				draw_entity(selected_entity);
+
+				if (ImGui::Button("Add Component")) ImGui::OpenPopup("New Component");
+
+				if (ImGui::BeginPopup("New Component")) {
+					if (ImGui::MenuItem("Light")) selected_entity.add_component<cmps::Light>();
+					if (ImGui::MenuItem("Mesh")) selected_entity.add_component<cmps::Mesh>();
+					if (ImGui::MenuItem("Pbr")) selected_entity.add_component<cmps::PBR>();
+					ImGui::EndPopup();
+				}
+			}
 			ImGui::End();
 		}
 
@@ -213,6 +240,12 @@ namespace geg {
 				ui::draw_smth(
 						"Light color", [&light_color] { ImGui::ColorEdit3("##color", &light_color.r); });
 				ui::draw_smth("Light intensity", [&light_color] {
+					ImGui::PushStyleColor(ImGuiCol_Button, {0.8f, 0.1f, 0.15f, 1.0f});
+					ImGui::PushStyleColor(ImGuiCol_ButtonHovered, {0.9f, 0.2f, 0.2f, 1.0f});
+					ImGui::PushStyleColor(ImGuiCol_ButtonActive, {0.8f, 0.1f, 0.15f, 1.0f});
+					if (ImGui::Button("Reset")) light_color.a = 100;
+					ImGui::PopStyleColor(3);
+					ImGui::SameLine();
 					ImGui::DragFloat("##light_intesity", &light_color.a, 1.0f, 0.0f);
 				});
 			}

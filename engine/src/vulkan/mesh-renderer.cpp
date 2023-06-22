@@ -85,6 +85,8 @@ namespace geg::vulkan {
 			const auto& transform = objects.get<cmps::Transform>(obj);
 			const auto& mesh = objects.get<cmps::Mesh>(obj);
 
+			if(!pbr_data || !mesh) continue;
+
 			push_data.model = transform.model_matrix();
 			push_data.norm = transform.normal_matrix();
 

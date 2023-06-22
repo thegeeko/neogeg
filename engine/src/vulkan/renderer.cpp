@@ -68,7 +68,7 @@ namespace geg::vulkan {
 			clear.push_back({
 					.color =
 							{
-									.float32 = {{1, 1, 1, 1}},
+									.float32 = {{0, 0, 0, 1}},
 							},
 			});
 

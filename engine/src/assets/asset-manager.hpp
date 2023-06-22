@@ -6,8 +6,8 @@
 #include "vulkan/texture.hpp"
 
 namespace geg {
-	using MeshId = uint32_t;
-	using TextureId = uint32_t;
+	using MeshId = int32_t;
+	using TextureId = int32_t;
 
 	class AssetManager {
 	public:
@@ -89,8 +89,15 @@ namespace geg {
 
 		const vulkan::Mesh& get_mesh(MeshId id) { return m_meshs[id]; }
 		const vulkan::Texture& get_texture(TextureId id) { return m_textures[id]; }
-		const std::string get_mesh_name(MeshId id) const { return m_meshs[id].name(); }
-		const std::string get_texture_name(TextureId id) const { return m_textures[id].name(); }
+		const std::string get_mesh_name(MeshId id) const {
+			if(id < 0) return "No mesh";
+
+			return m_meshs[id].name();
+		}
+		const std::string get_texture_name(TextureId id) const {
+			if(id < 0) return "No texture";
+			return m_textures[id].name();
+		}
 
 	private:
 		AssetManager() = default;

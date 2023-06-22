@@ -22,26 +22,24 @@ public:
 
 		geg::Entity cerberus = scene.create_entity("cerberus");
 		cerberus.add_component<cmps::Mesh>(mesh);
-		cerberus.add_component<cmps::Transform>();
 		cerberus.add_component<cmps::PBR>(albedo, metallic, roughness);
 
 		cerberus.get_component<cmps::Transform>().scale *= 0.03f;
 
 		geg::Entity light = scene.create_entity("light");
-		light.add_component<cmps::Light>();
-		light.add_component<cmps::Transform>();
+		light.add_component<cmps::Light>(cmps::Light{
+				.light_color = {1.0f, 1.0f, 1.0f, 300.0f},
+		});
+		light.get_component<cmps::Transform>().translation = {0, -6.0, 1.0f};
 	};
 
 	void on_detach() override {}
-	void update(float ts) override {
-		scene_hierarchy.draw_panel();
-	};
+	void update(float ts) override { scene_hierarchy.draw_panel(); };
 	void ui(float ts) override{};
 	void on_event(geg::Event& event) override{};
 
-	private:
-		geg::panels::Scene scene_hierarchy;
-
+private:
+	geg::panels::Scene scene_hierarchy;
 };
 
 auto main() -> int {
