@@ -3,22 +3,22 @@
 #include "entt/entt.hpp"
 
 namespace geg {
-	class Entity;
+  class Entity;
 
-	class Scene {
-	public:
-		Scene() = default;
-		~Scene() = default;
+  class Scene {
+  public:
+    Scene() = default;
+    ~Scene() = default;
 
-		Entity create_entity();
-		Entity create_entity(const std::string& name);
-		void delete_entity(Entity entity);
+    Entity create_entity();
+    Entity create_entity(const std::string& name);
+    void delete_entity(Entity entity);
 
-		entt::registry& get_reg() { return registry; }
+    entt::registry& get_reg() { return registry; }
 
-		void for_each(std::function<void(Entity&)> cb);
+    void for_each(std::function<void(Entity&)> cb);
 
-	private:
-		entt::registry registry;
-	};
-}		 // namespace geg
+  private:
+    entt::registry registry;
+  };
+}    // namespace geg

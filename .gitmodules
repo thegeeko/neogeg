@@ -22,3 +22,6 @@
 [submodule "engine/lib/entt"]
 	path = engine/lib/entt
 	url = https://github.com/skypjack/entt.git
+[submodule "engine/lib/ligit-profiler"]
+	path = engine/lib/ligit-profiler
+	url = https://github.com/Raikiri/LegitProfiler.git

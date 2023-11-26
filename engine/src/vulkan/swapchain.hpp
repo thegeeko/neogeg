@@ -6,39 +6,40 @@
 #include "geg-vulkan.hpp"
 
 namespace geg::vulkan {
-	class Swapchain {
-	public:
-		Swapchain(std::shared_ptr<Window> window, std::shared_ptr<Device> device);
-		~Swapchain();
-		Swapchain(const Swapchain &) = delete;
-		Swapchain &operator=(const Swapchain &) = delete;
-		Swapchain(Swapchain &&) = delete;
-		Swapchain &operator=(Swapchain &&) = delete;
+  class Swapchain {
+  public:
+    Swapchain(std::shared_ptr<Window> window, std::shared_ptr<Device> device);
+    ~Swapchain();
+    Swapchain(const Swapchain &) = delete;
+    Swapchain &operator=(const Swapchain &) = delete;
+    Swapchain(Swapchain &&) = delete;
+    Swapchain &operator=(Swapchain &&) = delete;
 
-		void recreate(std::optional<vk::PresentModeKHR> present_mode);
-		vk::PresentModeKHR present_mode() const { return m_present_mode; }
+    void recreate(std::optional<vk::PresentModeKHR> present_mode);
+    vk::PresentModeKHR present_mode() const { return m_present_mode; }
 
-		auto format() const { return m_surface_format.format; }
-		auto images() const { return m_images; }
-		auto extent() const { return m_extent; }
-		uint32_t image_count() const { return m_images.size(); }
+    auto format() const { return m_surface_format.format; }
+    auto images() const { return m_images; }
+    auto extent() const { return m_extent; }
+    uint32_t image_count() const { return m_images.size(); }
 
-		vk::SwapchainKHR swapchain = nullptr;
-	private:
-		void create_swapchain();
+    vk::SwapchainKHR swapchain = nullptr;
 
-		std::shared_ptr<Window> m_window;
-		std::shared_ptr<Device> m_device;
+  private:
+    void create_swapchain();
 
-		vk::CompositeAlphaFlagBitsKHR m_composite_alpha;
-		vk::SurfaceTransformFlagBitsKHR m_transform;
-		vk::SurfaceFormatKHR m_surface_format;
-		vk::PresentModeKHR m_present_mode;
-		vk::Extent2D m_extent;
+    std::shared_ptr<Window> m_window;
+    std::shared_ptr<Device> m_device;
 
-		uint32_t m_min_image_count = 0;
+    vk::CompositeAlphaFlagBitsKHR m_composite_alpha;
+    vk::SurfaceTransformFlagBitsKHR m_transform;
+    vk::SurfaceFormatKHR m_surface_format;
+    vk::PresentModeKHR m_present_mode;
+    vk::Extent2D m_extent;
 
-		std::vector<Image> m_images;
-	};
+    uint32_t m_min_image_count = 0;
 
-}		 // namespace geg::vulkan
+    std::vector<Image> m_images;
+  };
+
+}    // namespace geg::vulkan
