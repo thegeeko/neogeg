@@ -1,35 +1,34 @@
 #pragma once
 
-#include <cstdint>
 #include "assets/asset-manager.hpp"
 #include "ecs/scene.hpp"
-#include "renderer.hpp"
 #include "shader.hpp"
 #include "assets/meshes/meshes.hpp"
 #include "uniform-buffer.hpp"
 #include "glm/gtx/transform.hpp"
 #include "texture.hpp"
+#include "renderer/camera.hpp"
 
 namespace geg::vulkan {
-	class MeshRenderer final: public Renderer {
+	class MeshRenderer {
 	public:
 		MeshRenderer(
-				const std::shared_ptr<Device>& device,
-				std::shared_ptr<Swapchain> swapchain,
-				DepthResources depth_resources);
+				const std::shared_ptr<Device>& device, vk::Format img_fomrat);
 
-		~MeshRenderer() override;
+		~MeshRenderer();
 
 		void fill_commands(
 				const vk::CommandBuffer& cmd,
 				const Camera& camera,
-				uint32_t frame_index,
-				Scene* scene) override;
+				Scene* scene,
+                const Image& color_target,
+                const Image& depth_target);
 
 		glm::mat4 projection = glm::mat4(1);
 
 	private:
-		void init_pipeline();
+		std::shared_ptr<Device> m_device;
+		void init_pipeline(vk::Format img_format);
 
 		struct Light {
 			glm::vec4 pos{0};

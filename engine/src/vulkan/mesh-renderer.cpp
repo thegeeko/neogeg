@@ -6,12 +6,9 @@
 
 namespace geg::vulkan {
 
-	MeshRenderer::MeshRenderer(
-			const std::shared_ptr<Device>& device,
-			std::shared_ptr<Swapchain> swapchain,
-			DepthResources depth_resources):
-			Renderer(device, std::move(swapchain), depth_resources) {
-		init_pipeline();
+	MeshRenderer::MeshRenderer(const std::shared_ptr<Device>& device, vk::Format img_format):
+			m_device(device) {
+		init_pipeline(img_format);
 	}
 
 	MeshRenderer::~MeshRenderer() {
@@ -20,13 +17,38 @@ namespace geg::vulkan {
 	}
 
 	void MeshRenderer::fill_commands(
-			const vk::CommandBuffer& cmd, const Camera& camera, uint32_t frame_index, Scene* scene) {
+			const vk::CommandBuffer& cmd,
+			const Camera& camera,
+			Scene* scene,
+			const Image& color_target,
+			const Image& depth_target) {
 		namespace cmps = components;
 		if (!scene) return;
-
 		auto& asset_manager = AssetManager::get();
 
-		begin(cmd, frame_index);
+		vk::RenderingAttachmentInfoKHR color_attachment_info{};
+		color_attachment_info.imageView = color_target.view;
+		color_attachment_info.imageLayout = vk::ImageLayout::eColorAttachmentOptimal;
+		color_attachment_info.loadOp = vk::AttachmentLoadOp::eClear;
+		color_attachment_info.storeOp = vk::AttachmentStoreOp::eStore;
+		color_attachment_info.clearValue = vk::ClearValue{};
+
+		vk::RenderingAttachmentInfoKHR depth_attachment_info{};
+		depth_attachment_info.imageView = depth_target.view;
+		depth_attachment_info.imageLayout = vk::ImageLayout::eDepthAttachmentOptimal;
+		depth_attachment_info.loadOp = vk::AttachmentLoadOp::eClear;
+		depth_attachment_info.storeOp = vk::AttachmentStoreOp::eStore;
+		depth_attachment_info.clearValue = vk::ClearValue{.depthStencil = {.depth = 1}};
+
+		vk::RenderingInfoKHR rendering_info{};
+		rendering_info.renderArea.extent = color_target.extent;
+		rendering_info.pColorAttachments = &color_attachment_info;
+		rendering_info.pDepthAttachment = &depth_attachment_info;
+		rendering_info.colorAttachmentCount = 1;
+		rendering_info.layerCount = 1;
+
+		cmd.beginRendering(rendering_info);
+
 		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, m_pipeline);
 
 		cmd.setViewport(
@@ -34,8 +56,8 @@ namespace geg::vulkan {
 				vk::Viewport{
 						.x = 0,
 						.y = 0,
-						.width = (float)m_swapchain->extent().width,
-						.height = (float)m_swapchain->extent().height,
+						.width = static_cast<float>(color_target.extent.width),
+						.height = static_cast<float>(color_target.extent.height),
 						.minDepth = 0,
 						.maxDepth = 1,
 				});
@@ -43,8 +65,8 @@ namespace geg::vulkan {
 		cmd.setScissor(
 				0,
 				vk::Rect2D{
-						.offset = {0},
-						.extent = m_swapchain->extent(),
+						.offset = {},
+						.extent = color_target.extent,
 				});
 
 		const auto& light_view = scene->get_reg().view<cmps::Light, cmps::Transform>();
@@ -85,7 +107,7 @@ namespace geg::vulkan {
 			const auto& transform = objects.get<cmps::Transform>(obj);
 			const auto& mesh = objects.get<cmps::Mesh>(obj);
 
-			if(!pbr_data || !mesh) continue;
+			if (!pbr_data || !mesh) continue;
 
 			push_data.model = transform.model_matrix();
 			push_data.norm = transform.normal_matrix();
@@ -128,10 +150,10 @@ namespace geg::vulkan {
 			cmd.draw(indcies_count, 1, 0, 0);
 		}
 
-		cmd.endRenderPass();
+		cmd.endRendering();
 	}
 
-	void MeshRenderer::init_pipeline() {
+	void MeshRenderer::init_pipeline(vk::Format img_format) {
 		auto vert_shader_stage = m_shader.vert_stage_info;
 		auto frag_shader_stage = m_shader.frag_stage_info;
 
@@ -234,9 +256,17 @@ namespace geg::vulkan {
 				.pPushConstantRanges = &push_range,
 		});
 
+		// dynamic rendering
+		vk::PipelineRenderingCreateInfoKHR rendering_info{
+				.colorAttachmentCount = 1,
+				.pColorAttachmentFormats = &img_format,
+				.depthAttachmentFormat = vk::Format::eD32SfloatS8Uint,
+		};
+
 		auto result = m_device->vkdevice.createGraphicsPipeline(
 				{},
 				{
+						.pNext = &rendering_info,
 						.stageCount = 2,
 						.pStages = std::array{vert_shader_stage, frag_shader_stage}.data(),
 						.pVertexInputState = &vertex_input_info,
@@ -248,7 +278,7 @@ namespace geg::vulkan {
 						.pColorBlendState = &color_blending,
 						.pDynamicState = &dynamic_state,
 						.layout = m_pipeline_layout,
-						.renderPass = m_renderpass,
+						.renderPass = nullptr,
 						.subpass = 0,
 						.basePipelineHandle = vk::Pipeline{},
 						.basePipelineIndex = -1,

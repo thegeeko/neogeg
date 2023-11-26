@@ -2,6 +2,7 @@
 
 #include "assimp/postprocess.h"
 #include "assimp/Importer.hpp"
+#include "vk_mem_alloc.h"
 
 namespace geg::vulkan {
 	Mesh::Mesh(const fs::path& path, const std::shared_ptr<Device>& device) {
@@ -47,43 +48,51 @@ namespace geg::vulkan {
 
 		{
 			// final buffer
-			vk::BufferCreateInfo buffer_info{
+			auto buffer_info = static_cast<VkBufferCreateInfo>(vk::BufferCreateInfo{
 					.size = size,
 					.usage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer,
 					.sharingMode = vk::SharingMode::eExclusive,
+			});
+
+			VmaAllocationCreateInfo alloc_info{
+					.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 			};
 
-			vma::AllocationCreateInfo alloc_info{
-					.requiredFlags = vk::MemoryPropertyFlagBits::eDeviceLocal,
-			};
-
-			auto [final_buff, final_alloc] = device->allocator.createBuffer(buffer_info, alloc_info);
-			buffer = final_buff;
-			m_alloc = final_alloc;
+			VkBuffer vk_buff;
+			vmaCreateBuffer(m_device->allocator, &buffer_info, &alloc_info, &vk_buff, &m_alloc, nullptr);
+			buffer = vk_buff;
 		}
 
-		vk::BufferCreateInfo buffer_info{
+		auto buffer_info = static_cast<VkBufferCreateInfo>(vk::BufferCreateInfo{
 				.size = size,
 				.usage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc,
 				.sharingMode = vk::SharingMode::eExclusive,
+		});
+
+		auto memory_flags = static_cast<uint32_t>(
+				vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+		VmaAllocationCreateInfo alloc_info = {
+				.usage = VMA_MEMORY_USAGE_CPU_COPY,
+				.requiredFlags = memory_flags,
 		};
 
-		vma::AllocationCreateInfo alloc_info = {
-				.usage = vma::MemoryUsage::eCpuCopy,
-				.requiredFlags =
-						vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
-		};
+		VkBuffer staging_buffer;
+		VmaAllocation staging_alloc;
+		vmaCreateBuffer(
+				m_device->allocator, &buffer_info, &alloc_info, &staging_buffer, &staging_alloc, nullptr);
 
-		auto [staging_buffer, staging_alloc] =
-				device->allocator.createBufferUnique(buffer_info, alloc_info);
-
-		void* mapping_addr = device->allocator.mapMemory(staging_alloc.get());
+		void* mapping_addr = nullptr;
+		vmaMapMemory(m_device->allocator, staging_alloc, &mapping_addr);
 		void* indecies_mapping_addr = static_cast<uint8_t*>(mapping_addr) + index_offset;
+
 		memcpy(mapping_addr, vertices.data(), vertex_size);
 		memcpy(indecies_mapping_addr, indices.data(), index_size);
-		device->allocator.unmapMemory(staging_alloc.get());
+		vmaUnmapMemory(m_device->allocator, staging_alloc);
+
 		device->single_time_command(
-				[&](auto cmd) { device->copy_buffer(staging_buffer.get(), buffer, size, cmd); });
+				[&](auto cmd) { device->copy_buffer(staging_buffer, buffer, size, cmd); });
+
+		vmaDestroyBuffer(m_device->allocator, staging_buffer, staging_alloc);
 
 		vk::DescriptorBufferInfo vertx_desc_buff{
 				.buffer = buffer,
@@ -116,7 +125,7 @@ namespace geg::vulkan {
 	}
 
 	Mesh::~Mesh() {
-		m_device->allocator.destroyBuffer(buffer, m_alloc);
+		vmaDestroyBuffer(m_device->allocator, buffer, m_alloc);
 		GEG_CORE_WARN("Destroying mesh");
 	}
 }		 // namespace geg::vulkan

@@ -2,7 +2,7 @@
 
 #include "glm/glm.hpp"
 #include "vulkan/geg-vulkan.hpp"
-#include "vk_mem_alloc.hpp"
+#include "vk_mem_alloc.h"
 #include "vulkan/device.hpp"
 #include "utils/filesystem.hpp"
 #include "assimp/scene.h"
@@ -34,7 +34,7 @@ namespace geg::vulkan {
 
 	private:
 		std::shared_ptr<Device> m_device;
-		vma::Allocation m_alloc;
+		VmaAllocation m_alloc;
 		fs::path m_path;
 	};
 }		 // namespace geg::vulkan

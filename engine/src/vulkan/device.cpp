@@ -1,5 +1,10 @@
 #include "device.hpp"
-#include "vk_mem_alloc.hpp"
+#include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan_enums.hpp>
+#include <vulkan/vulkan_structs.hpp>
+#include "core/asserts.hpp"
+#include "core/logger.hpp"
+#include "vk_mem_alloc.h"
 
 PFN_vkCreateDebugUtilsMessengerEXT pfnVkCreateDebugUtilsMessengerEXT;
 PFN_vkDestroyDebugUtilsMessengerEXT pfnVkDestroyDebugUtilsMessengerEXT;
@@ -82,11 +87,11 @@ namespace geg::vulkan {
 		this->window = window;
 
 		vk::ApplicationInfo applicationInfo{
-				.pApplicationName = "GEG",
+				.pApplicationName = "GEG Game",
 				.applicationVersion = VK_MAKE_VERSION(0, 0, 1),
 				.pEngineName = "GEG",
 				.engineVersion = VK_MAKE_VERSION(0, 0, 1),
-				.apiVersion = VK_API_VERSION_1_2,
+				.apiVersion = VK_API_VERSION_1_3,
 		};
 
 		// required extensions
@@ -224,10 +229,24 @@ namespace geg::vulkan {
 				.pQueuePriorities = &queue_priority,
 		};
 
+		bool dynamic_rendering = false;
+		const std::vector<vk::ExtensionProperties> properties =
+				physical_device.enumerateDeviceExtensionProperties();
+		for (auto &prop : properties) {
+			if (std::strcmp(prop.extensionName, VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME))
+				dynamic_rendering = true;
+		}
+		GEG_CORE_ASSERT(dynamic_rendering, "dynamic rendering extension required");
+
 		vk::PhysicalDeviceDescriptorIndexingFeaturesEXT device_indexing_features = {
 				.shaderSampledImageArrayNonUniformIndexing = VK_TRUE,
 				.descriptorBindingVariableDescriptorCount = VK_TRUE,
 				.runtimeDescriptorArray = VK_TRUE,
+		};
+
+		vk::PhysicalDeviceDynamicRenderingFeatures dynamic_rendering_features = {
+				.pNext = &device_indexing_features,
+				.dynamicRendering = VK_TRUE,
 		};
 
 		const vk::PhysicalDeviceFeatures device_features = {
@@ -235,7 +254,7 @@ namespace geg::vulkan {
 		};
 
 		const vk::PhysicalDeviceFeatures2 device_features2 = {
-				.pNext = &device_indexing_features,
+				.pNext = &dynamic_rendering_features,
 				.features = device_features,
 		};
 
@@ -248,6 +267,7 @@ namespace geg::vulkan {
 				.ppEnabledExtensionNames = device_extensions.data(),
 		});
 
+		// TODO: improve this
 		graphics_queue = vkdevice.getQueue(queue_family_index.value(), 0);
 
 		// creating main command pool
@@ -256,12 +276,13 @@ namespace geg::vulkan {
 				.queueFamilyIndex = queue_family_index.value(),
 		});
 
-		allocator = vma::createAllocator({
+		VmaAllocatorCreateInfo allocator_info{
 				.physicalDevice = physical_device,
 				.device = vkdevice,
 				.instance = instance,
 				.vulkanApiVersion = VK_API_VERSION_1_2,
-		});
+		};
+		vmaCreateAllocator(&allocator_info, &allocator);
 
 		m_descriptor_allocator = std::make_unique<DescriptorAllocator>(this);
 		m_descriptor_layout_cache = std::make_unique<DescriptorLayoutCache>(this);
@@ -271,7 +292,7 @@ namespace geg::vulkan {
 		GEG_CORE_WARN("destroying vulkan device");
 		m_descriptor_layout_cache.reset();
 		m_descriptor_allocator.reset();
-		allocator.destroy();
+		vmaDestroyAllocator(allocator);
 		vkdevice.destroyCommandPool(command_pool);
 		vkdevice.destroy();
 		instance.destroySurfaceKHR(surface);
@@ -318,25 +339,34 @@ namespace geg::vulkan {
 	}
 
 	void Device::upload_to_buffer(vk::Buffer buffer, void *data, vk::DeviceSize size) {
-		vk::BufferCreateInfo buffer_info{
+		auto buffer_info = static_cast<VkBufferCreateInfo>(vk::BufferCreateInfo{
 				.size = size,
 				.usage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc,
 				.sharingMode = vk::SharingMode::eExclusive,
+		});
+
+		auto flags =
+				vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
+
+		VmaAllocationCreateInfo alloc_info{
+				.usage = VMA_MEMORY_USAGE_CPU_COPY,
+				.requiredFlags = static_cast<uint32_t>(flags),
 		};
 
-		vma::AllocationCreateInfo alloc_info = {
-				.usage = vma::MemoryUsage::eCpuCopy,
-				.requiredFlags =
-						vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
-		};
+		VkBuffer staging_buffer = nullptr;
+		VmaAllocation staging_allocation = nullptr;
 
-		auto [staging_buffer, staging_alloc] = allocator.createBufferUnique(buffer_info, alloc_info);
+		vmaCreateBuffer(
+				allocator, &buffer_info, &alloc_info, &staging_buffer, &staging_allocation, nullptr);
 
-		void *mapping_addr = allocator.mapMemory(staging_alloc.get());
+		void *mapping_addr = nullptr;
+		vmaMapMemory(allocator, staging_allocation, &mapping_addr);
+
 		memcpy(mapping_addr, data, size);
-		allocator.unmapMemory(staging_alloc.get());
+		vmaUnmapMemory(allocator, staging_allocation);
 
-		single_time_command([&](auto cmd) { copy_buffer(staging_buffer.get(), buffer, size, cmd); });
+		single_time_command([&](auto cmd) { copy_buffer(staging_buffer, buffer, size, cmd); });
+		vmaDestroyBuffer(allocator, staging_buffer, staging_allocation);
 	}
 
 	void Device::upload_to_image(
@@ -346,31 +376,41 @@ namespace geg::vulkan {
 			vk::Extent3D extent,
 			const void *data,
 			vk::DeviceSize size) {
-		vk::BufferCreateInfo buffer_info{
+		auto buffer_info = static_cast<VkBufferCreateInfo>(vk::BufferCreateInfo{
 				.size = size,
 				.usage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc,
 				.sharingMode = vk::SharingMode::eExclusive,
+		});
+
+		auto flags =
+				vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
+
+		VmaAllocationCreateInfo alloc_info{
+				.usage = VMA_MEMORY_USAGE_CPU_COPY,
+				.requiredFlags = static_cast<uint32_t>(flags),
 		};
 
-		vma::AllocationCreateInfo alloc_info = {
-				.usage = vma::MemoryUsage::eCpuCopy,
-				.requiredFlags =
-						vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
-		};
+		VkBuffer staging_buffer = nullptr;
+		VmaAllocation staging_allocation = nullptr;
 
-		auto [staging_buffer, staging_alloc] = allocator.createBufferUnique(buffer_info, alloc_info);
+		vmaCreateBuffer(
+				allocator, &buffer_info, &alloc_info, &staging_buffer, &staging_allocation, nullptr);
 
-		void *mapping_addr = allocator.mapMemory(staging_alloc.get());
+		void *mapping_addr = nullptr;
+		vmaMapMemory(allocator, staging_allocation, &mapping_addr);
+
 		memcpy(mapping_addr, data, size);
-		allocator.unmapMemory(staging_alloc.get());
+		vmaUnmapMemory(allocator, staging_allocation);
 
 		single_time_command([&](auto cmd) {
 			transition_image_layout(
 					image, format, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, cmd);
-			copy_buffer_to_image(staging_buffer.get(), image, extent, cmd);
+			copy_buffer_to_image(staging_buffer, image, extent, cmd);
 			transition_image_layout(
 					image, format, vk::ImageLayout::eTransferDstOptimal, layout_after, cmd);
 		});
+
+		vmaDestroyBuffer(allocator, staging_buffer, staging_allocation);
 	}
 
 	void Device::copy_buffer_to_image(
@@ -430,7 +470,22 @@ namespace geg::vulkan {
 
 			src_stage = vk::PipelineStageFlagBits::eTransfer;
 			dst_stage = vk::PipelineStageFlagBits::eFragmentShader;
-		} else {
+		} else if (
+				old_layout == vk::ImageLayout::eColorAttachmentOptimal &&
+				new_layout == vk::ImageLayout::ePresentSrcKHR) {
+			barrier.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+
+			src_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+			dst_stage = vk::PipelineStageFlagBits::eTopOfPipe;
+		} else if (
+				old_layout == vk::ImageLayout::eUndefined &&
+				new_layout == vk::ImageLayout::eColorAttachmentOptimal) {
+			barrier.srcAccessMask = vk::AccessFlagBits::eNone;
+			barrier.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+
+			src_stage = vk::PipelineStageFlagBits::eTopOfPipe;
+			dst_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+		}  else {
 			GEG_CORE_ERROR("Unsupported image transition");
 		}
 

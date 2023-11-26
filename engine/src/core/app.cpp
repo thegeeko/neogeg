@@ -4,7 +4,6 @@
 #include "core/window.hpp"
 #include "events/base-event.hpp"
 #include "events/events.hpp"
-#include "vulkan/renderer.hpp"
 #include "core/time.hpp"
 #include "core/input.hpp"
 #include "imgui.h"

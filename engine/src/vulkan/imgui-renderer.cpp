@@ -1,26 +1,30 @@
 #include "imgui-renderer.hpp"
+#include <vulkan/vulkan_enums.hpp>
+#include <vulkan/vulkan_handles.hpp>
 
-#include <utility>
 #include "imgui.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_vulkan.h"
+#include "vulkan/geg-vulkan.hpp"
 
 namespace geg::vulkan {
 	ImguiRenderer::ImguiRenderer(
-			const std::shared_ptr<Device>& device, std::shared_ptr<Swapchain> swapchain):
-			Renderer(device, std::move(swapchain)) {
+			const std::shared_ptr<Device>& device, vk::Format img_format, uint32_t img_count):
+			m_device(device) {
 		IMGUI_CHECKVERSION();
 		ImGui::CreateContext();
 		ImGuiIO& io = ImGui::GetIO();
 		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 		io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-		//		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+		// io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 		io.Fonts->AddFontFromFileTTF("assets/fonts/mononoki.ttf", 13);
 
 		create_descriptor_pool();
 		ImGui_ImplGlfw_InitForVulkan(m_device->window->raw_pointer, true);
 		ImGui_ImplVulkan_InitInfo initInfo = {};
+		initInfo.UseDynamicRendering = true;
+		initInfo.ColorAttachmentFormat = static_cast<VkFormat>(img_format);
 		initInfo.Instance = m_device->instance;
 		initInfo.PhysicalDevice = m_device->physical_device;
 		initInfo.Device = m_device->vkdevice;
@@ -30,22 +34,20 @@ namespace geg::vulkan {
 		initInfo.DescriptorPool = m_descriptor_pool;
 		initInfo.Allocator = VK_NULL_HANDLE;
 		initInfo.MinImageCount = 2;
-		initInfo.ImageCount = m_swapchain->image_count();
+		initInfo.ImageCount = img_count;
 		initInfo.CheckVkResultFn = [](VkResult result) {
 			GEG_CORE_ASSERT(result == VK_SUCCESS, "imgui vulkan error");
 		};
 
-		ImGui_ImplVulkan_Init(&initInfo, m_renderpass);
+		ImGui_ImplVulkan_Init(&initInfo, nullptr);
 
-		device->single_time_command([](auto cmdb) { ImGui_ImplVulkan_CreateFontsTexture(cmdb); });
-		ImGui_ImplVulkan_DestroyFontUploadObjects();
+		ImGui_ImplVulkan_CreateFontsTexture();
 
 		GEG_CORE_INFO("Imgui renderer created");
+		io.DisplaySize =
+				ImVec2(1920.f, 1080.f);
 
 		// @TODO find a better way to do this
-		io.DisplaySize = ImVec2(
-				static_cast<float>(m_swapchain->extent().width),
-				static_cast<float>(m_swapchain->extent().height));
 		ImGui::NewFrame();
 	}
 
@@ -58,15 +60,10 @@ namespace geg::vulkan {
 	}
 
 	void ImguiRenderer::fill_commands(
-			const vk::CommandBuffer& cmd,
-			const Camera& camera,
-			uint32_t frame_index,
-			Scene* scene) {
-		begin(cmd, frame_index);
+			const vk::CommandBuffer& cmd, Scene* scene, const Image& target) {
 		ImGuiIO& io = ImGui::GetIO();
-		io.DisplaySize = ImVec2(
-				static_cast<float>(m_swapchain->extent().width),
-				static_cast<float>(m_swapchain->extent().height));
+		io.DisplaySize =
+				ImVec2(static_cast<float>(target.extent.width), static_cast<float>(target.extent.height));
 
 		ImGui::Render();
 		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
@@ -74,8 +71,22 @@ namespace geg::vulkan {
 			ImGui::RenderPlatformWindowsDefault();
 		}
 
+		vk::RenderingAttachmentInfoKHR attachment_info{};
+		attachment_info.imageView = target.view;
+		attachment_info.imageLayout = vk::ImageLayout::eColorAttachmentOptimal;
+		attachment_info.loadOp = vk::AttachmentLoadOp::eLoad;
+		attachment_info.storeOp = vk::AttachmentStoreOp::eStore;
+
+		vk::RenderingInfoKHR rendering_info{};
+		rendering_info.renderArea.extent = target.extent;
+		rendering_info.pColorAttachments = &attachment_info;
+		rendering_info.colorAttachmentCount = 1;
+		rendering_info.layerCount = 1;
+
+		cmd.beginRendering(rendering_info);
 		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
-		cmd.endRenderPass();
+		cmd.endRendering();
+
 		ImGui::NewFrame();
 	}
 

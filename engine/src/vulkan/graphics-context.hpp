@@ -2,9 +2,7 @@
 
 #include <sys/types.h>
 #include "assets/asset-manager.hpp"
-#include "clear-renderer.hpp"
 #include "imgui-renderer.hpp"
-#include "present-renderer.hpp"
 #include "core/window.hpp"
 #include "events/events.hpp"
 #include "core/input.hpp"
@@ -51,7 +49,7 @@ namespace geg {
 		struct {
 			bool imgui_renderer = true;
 			bool mesh_renderer = true;
-			vk::PresentModeKHR present_mode = vk::PresentModeKHR::eMailbox;
+			vk::PresentModeKHR present_mode = vk::PresentModeKHR::eFifo;
 			std::string present_mode_name = "Fifo - VSync";
 			float fov = 45.0f;
 		} m_debug_ui_settings = {};
@@ -63,13 +61,11 @@ namespace geg {
 		std::pair<uint32_t, uint32_t> m_current_dimensions;
 		uint32_t m_current_image_index = 0;
 
-		std::pair<vma::UniqueImage, vma::UniqueAllocation> m_depth_image;
-		vk::UniqueImageView m_depth_image_view;
+		std::pair<vk::Image, VmaAllocation> m_depth_image = {nullptr, nullptr};
+		vk::ImageView m_depth_image_view;
 
-		std::unique_ptr<vulkan::ClearRenderer> m_clear_renderer;
 		std::unique_ptr<vulkan::MeshRenderer> m_mesh_renderer;
 		std::unique_ptr<vulkan::ImguiRenderer> m_imgui_renderer;
-		std::unique_ptr<vulkan::PresentRenderer> m_present_renderer;
 
 		vk::Semaphore m_present_semaphore;
 		vk::Semaphore m_render_semaphore;

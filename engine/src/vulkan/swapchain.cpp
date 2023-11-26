@@ -35,7 +35,7 @@ namespace geg::vulkan {
 			m_extent = surface_capabilities.currentExtent;
 		}
 
-		m_present_mode = vk::PresentModeKHR::eMailbox;
+		m_present_mode = vk::PresentModeKHR::eFifo;
 
 		m_transform =
 				(surface_capabilities.supportedTransforms & vk::SurfaceTransformFlagBitsKHR::eIdentity) ?
@@ -135,6 +135,7 @@ namespace geg::vulkan {
 
 			m_images[i].image = image;
 			m_images[i].view = image_view;
+			m_images[i].extent = m_extent;
 			i++;
 		}
 

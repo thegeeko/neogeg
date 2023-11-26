@@ -2,6 +2,7 @@
 
 #include "geg-vulkan.hpp"
 #include "device.hpp"
+#include "vk_mem_alloc.h"
 
 namespace geg::vulkan {
 	class UniformBuffer {
@@ -14,10 +15,13 @@ namespace geg::vulkan {
 
 		uint32_t frame_offset(uint32_t frame_index) const { return frame_index * m_padded_size; }
 		void write_at_frame(const void* data, size_t size, uint32_t frame_index) {
-			auto mapping_addr = (uint8_t*)m_device->allocator.mapMemory(m_alloc.get());
+			void* void_mapping_addr = nullptr;
+			vmaMapMemory(m_device->allocator, m_alloc, &void_mapping_addr);
+
+			auto mapping_addr = (uint8_t*)void_mapping_addr;
 			mapping_addr += frame_index * m_padded_size;
 			memcpy(mapping_addr, data, size);
-			m_device->allocator.unmapMemory(m_alloc.get());
+			vmaUnmapMemory(m_device->allocator, m_alloc);
 		}
 
 	private:
@@ -25,8 +29,8 @@ namespace geg::vulkan {
 		uint32_t m_num_of_frames = 0;
 		size_t m_padded_size = 0;
 
-		vma::UniqueBuffer m_buff;
-		vma::UniqueAllocation m_alloc;
+		vk::Buffer m_buff;
+		VmaAllocation m_alloc;
 
 		std::shared_ptr<Device> m_device;
 

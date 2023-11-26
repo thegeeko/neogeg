@@ -1,12 +1,16 @@
 #include "graphics-context.hpp"
 
 #include <utility>
+#include <vulkan/vulkan_enums.hpp>
 
 #include "imgui.h"
 
-#include "vulkan/renderer.hpp"
+#include "vulkan/geg-vulkan.hpp"
 #include "vulkan/swapchain.hpp"
 #include "glm/gtc/matrix_transform.hpp"
+
+#define VMA_IMPLEMENTATION
+#include "vk_mem_alloc.h"
 
 namespace geg {
 	VulkanContext::VulkanContext(std::shared_ptr<Window> window): m_window(std::move(window)) {
@@ -32,21 +36,15 @@ namespace geg {
 				.commandBufferCount = images_count,
 		});
 
-		vulkan::DepthResources depth_resources{
-				.format = depth_format,
-				.image_view = m_depth_image_view.get(),
-		};
-
-		m_clear_renderer =
-				std::make_unique<vulkan::ClearRenderer>(m_device, m_swapchain, depth_resources);
-		m_mesh_renderer =
-				std::make_unique<vulkan::MeshRenderer>(m_device, m_swapchain, depth_resources);
-		m_imgui_renderer = std::make_unique<vulkan::ImguiRenderer>(m_device, m_swapchain);
-		m_present_renderer = std::make_unique<vulkan::PresentRenderer>(m_device, m_swapchain);
+		m_mesh_renderer = std::make_unique<vulkan::MeshRenderer>(m_device, m_swapchain->format());
+		m_imgui_renderer = std::make_unique<vulkan::ImguiRenderer>(
+				m_device, m_swapchain->format(), m_swapchain->image_count());
 	}
 
 	VulkanContext::~VulkanContext() {
 		m_device->vkdevice.waitIdle();
+		vmaDestroyImage(m_device->allocator, m_depth_image.first, m_depth_image.second);
+		m_device->vkdevice.destroyImageView(m_depth_image_view);
 		m_device->vkdevice.destroySemaphore(m_render_semaphore);
 		m_device->vkdevice.destroySemaphore(m_present_semaphore);
 		for (const auto& fence : m_swapchain_image_fences)
@@ -54,7 +52,12 @@ namespace geg {
 	}
 
 	void VulkanContext::create_depth_resources() {
-		const auto image_info = vk::ImageCreateInfo{
+		if (m_depth_image.first || m_depth_image.second) {
+			vmaDestroyImage(m_device->allocator, m_depth_image.first, m_depth_image.second);
+			m_device->vkdevice.destroyImageView(m_depth_image_view);
+		}
+
+		const auto image_info = static_cast<VkImageCreateInfo>(vk::ImageCreateInfo{
 				.imageType = vk::ImageType::e2D,
 				.format = depth_format,
 				.extent = vk::Extent3D{m_swapchain->extent().width, m_swapchain->extent().height, 1},
@@ -65,16 +68,21 @@ namespace geg {
 				.usage = vk::ImageUsageFlagBits::eDepthStencilAttachment,
 				.sharingMode = vk::SharingMode::eExclusive,
 				.initialLayout = vk::ImageLayout::eUndefined,
+		});
+
+		constexpr auto alloc_info = VmaAllocationCreateInfo{
+				.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT,
+				.usage = VMA_MEMORY_USAGE_GPU_ONLY,
 		};
 
-		constexpr auto alloc_info = vma::AllocationCreateInfo{
-				.flags = vma::AllocationCreateFlagBits::eDedicatedMemory,
-				.usage = vma::MemoryUsage::eGpuOnly,
-		};
+		VkImage img;
+		VmaAllocation alloc;
+		vmaCreateImage(m_device->allocator, &image_info, &alloc_info, &img, &alloc, nullptr);
+		m_depth_image = {img, alloc};
 
-		m_depth_image = m_device->allocator.createImageUnique(image_info, alloc_info);
-		m_depth_image_view = m_device->vkdevice.createImageViewUnique({
-				.image = m_depth_image.first.get(),
+
+		m_depth_image_view = m_device->vkdevice.createImageView({
+				.image = m_depth_image.first,
 				.viewType = vk::ImageViewType::e2D,
 				.format = depth_format,
 				.subresourceRange =
@@ -89,7 +97,6 @@ namespace geg {
 	}
 
 	void VulkanContext::render(const Camera& camera, Scene* scene) {
-
 		if (m_current_dimensions.first == 0 || m_current_dimensions.second == 0) return;
 
 		draw_debug_ui();
@@ -101,17 +108,6 @@ namespace geg {
 			m_device->vkdevice.waitIdle();
 			m_swapchain->recreate(m_debug_ui_settings.present_mode);
 			create_depth_resources();
-
-			const vulkan::DepthResources& new_dpeth = vulkan::DepthResources{
-					.format = depth_format,
-					.image_view = m_depth_image_view.get(),
-			};
-
-			m_clear_renderer->resize(new_dpeth);
-			m_mesh_renderer->resize(new_dpeth);
-			m_imgui_renderer->resize();
-			m_present_renderer->resize();
-
 			should_resize_swapchain = false;
 		}
 
@@ -140,16 +136,31 @@ namespace geg {
 		auto cmd = m_command_buffers[m_current_image_index];
 		cmd.begin(vk::CommandBufferBeginInfo{});
 
-		m_clear_renderer->fill_commands(cmd, camera, m_current_image_index);
+		vulkan::Image color_target = m_swapchain->images()[m_current_image_index];
+		vulkan::Image depth_target = vulkan::Image{.view = m_depth_image_view};
+
+		m_device->transition_image_layout(
+				color_target.image,
+				m_swapchain->format(),
+				vk::ImageLayout::eUndefined,
+				vk::ImageLayout::eColorAttachmentOptimal,
+				cmd);
+
 
 		if (m_debug_ui_settings.mesh_renderer) {
-			m_mesh_renderer->fill_commands(cmd, camera, m_current_image_index, scene);
+			m_mesh_renderer->fill_commands(cmd, camera, scene, color_target, depth_target);
 		}
 
-		if (m_debug_ui_settings.imgui_renderer)
-			m_imgui_renderer->fill_commands(cmd, camera, m_current_image_index);
+		if (m_debug_ui_settings.imgui_renderer) {
+			m_imgui_renderer->fill_commands(cmd, scene, color_target);
+		}
 
-		m_present_renderer->fill_commands(cmd, camera, m_current_image_index);
+		m_device->transition_image_layout(
+				color_target.image,
+				m_swapchain->format(),
+				vk::ImageLayout::eColorAttachmentOptimal,
+				vk::ImageLayout::ePresentSrcKHR,
+				cmd);
 
 		cmd.end();
 

@@ -1,7 +1,7 @@
 #pragma once
 
-#include <vulkan/vulkan_core.h>
 #include "device.hpp"
+#include "vk_mem_alloc.h"
 #include "utils/filesystem.hpp"
 
 namespace geg::vulkan {
@@ -60,7 +60,7 @@ namespace geg::vulkan {
 		std::string m_name;
 		vk::Format m_format;
 
-		vma::Allocation m_alloc;
+		VmaAllocation m_alloc;
 		vk::Image m_image;
 		vk::ImageView m_image_view;
 		vk::Sampler m_sampler;

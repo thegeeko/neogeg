@@ -2,6 +2,7 @@
 
 #include <utility>
 #include "stb_image.h"
+#include "vk_mem_alloc.h"
 
 namespace geg::vulkan {
 	Texture::Texture(
@@ -24,7 +25,7 @@ namespace geg::vulkan {
 		};
 
 		m_size = m_width * m_height * m_channels;
-		const auto image_info = vk::ImageCreateInfo{
+		const auto image_info = static_cast<VkImageCreateInfo>(vk::ImageCreateInfo{
 				.imageType = vk::ImageType::e2D,
 				.format = format,
 				.extent = extent,
@@ -35,21 +36,16 @@ namespace geg::vulkan {
 				.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
 				.sharingMode = vk::SharingMode::eExclusive,
 				.initialLayout = vk::ImageLayout::eUndefined,
-		};
+		});
 
-		const auto alloc_info = vma::AllocationCreateInfo{.usage = vma::MemoryUsage::eGpuOnly};
+		const VmaAllocationCreateInfo alloc_info = {.usage = VMA_MEMORY_USAGE_GPU_ONLY};
 
-		auto [image, alloc] = m_device->allocator.createImage(image_info, alloc_info);
-		m_image = std::move(image);
-		m_alloc = std::move(alloc);
+		VkImage vk_img;
+		vmaCreateImage(m_device->allocator, &image_info, &alloc_info, &vk_img, &m_alloc, nullptr);
+		m_image = vk_img;
 
 		m_device->upload_to_image(
-				m_image,
-				vk::ImageLayout::eShaderReadOnlyOptimal,
-				m_format,
-				extent,
-				image_data,
-				m_size);
+				m_image, vk::ImageLayout::eShaderReadOnlyOptimal, m_format, extent, image_data, m_size);
 
 		stbi_image_free((void*)image_data);
 
@@ -108,7 +104,7 @@ namespace geg::vulkan {
 
 	Texture::~Texture() {
 		GEG_CORE_WARN("destroying texture: {}", m_name);
-		m_device->allocator.destroyImage(m_image, m_alloc);
+		vmaDestroyImage(m_device->allocator, m_image, m_alloc);
 		m_device->vkdevice.destroy(m_image_view);
 		m_device->vkdevice.destroy(m_sampler);
 	}

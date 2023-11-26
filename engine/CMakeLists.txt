@@ -16,7 +16,7 @@ add_subdirectory("lib/assimp")
 
 add_subdirectory("lib/spdlog")
 add_subdirectory("lib/glm")
-add_subdirectory("lib/vma-hpp")
+add_subdirectory("lib/vma")
 add_subdirectory("lib/imgui")
 add_subdirectory("lib/stb")
 add_subdirectory("lib/entt")
@@ -54,14 +54,12 @@ target_link_libraries(geg PUBLIC Vulkan::SPIRV-Tools)
 target_link_libraries(geg PUBLIC spdlog::spdlog)
 target_link_libraries(geg PUBLIC glfw)
 target_link_libraries(geg PUBLIC glm)
-target_link_libraries(geg PUBLIC VulkanMemoryAllocator)
+target_link_libraries(geg PUBLIC GPUOpen::VulkanMemoryAllocator)
 target_link_libraries(geg PUBLIC imgui)
 target_link_libraries(geg PUBLIC stb)
 target_link_libraries(geg PUBLIC assimp)
 target_link_libraries(geg PUBLIC EnTT)
 
-# header only libs
-target_include_directories(geg PUBLIC "lib/vma-hpp/include")
 
 # pre compiled header
 target_precompile_headers(geg PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/pch.hpp")

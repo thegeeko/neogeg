@@ -1,22 +1,22 @@
 #pragma once
 
-#include "vulkan/renderer.hpp"
+#include "device.hpp"
+#include "swapchain.hpp"
+#include "renderer/camera.hpp"
+#include "ecs/scene.hpp"
 
 namespace geg::vulkan {
-	class ImguiRenderer final: public Renderer {
+	class ImguiRenderer {
 	public:
-		ImguiRenderer(const std::shared_ptr<Device>& device, std::shared_ptr<Swapchain> swapchain);
-
-		~ImguiRenderer() override;
+		ImguiRenderer(const std::shared_ptr<Device>& device, vk::Format img_format, uint32_t img_count);
+		~ImguiRenderer();
 
 		void fill_commands(
-				const vk::CommandBuffer& cmd,
-				const Camera& camera,
-				uint32_t frame_index,
-				Scene* scene = nullptr) override;
+			const vk::CommandBuffer& cmd, Scene* scene, const Image& target);
 
 	private:
 		void create_descriptor_pool();
 		vk::DescriptorPool m_descriptor_pool;
+		std::shared_ptr<Device> m_device;
 	};
 }		 // namespace geg::vulkan

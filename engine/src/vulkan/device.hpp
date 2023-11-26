@@ -4,8 +4,8 @@
 
 #include "geg-vulkan.hpp"
 #include "core/window.hpp"
-#include "vk_mem_alloc.hpp"
 #include "vulkan/descriptors.hpp"
+#include "vk_mem_alloc.h"
 
 namespace geg::vulkan {
 	class Device {
@@ -24,7 +24,7 @@ namespace geg::vulkan {
 		std::optional<uint32_t> queue_family_index;
 		vk::Queue graphics_queue;
 		vk::CommandPool command_pool;
-		vma::Allocator allocator;
+		VmaAllocator allocator;
 		std::shared_ptr<Window> window;
 
 		// helpers
