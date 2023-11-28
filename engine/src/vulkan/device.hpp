@@ -1,7 +1,5 @@
 #pragma once
 
-#include <memory>
-
 #include "geg-vulkan.hpp"
 #include "core/window.hpp"
 #include "vulkan/descriptors.hpp"

@@ -1,8 +1,12 @@
 #include "graphics-context.hpp"
+#include <vulkan/vulkan_core.h>
+#include <memory>
 
-#include <utility>
-#include <vulkan/vulkan_enums.hpp>
+#include "core/logger.hpp"
+#include "core/time.hpp"
+#include "utility"
 
+#include "ProfilerTask.h"
 #include "imgui.h"
 
 #include "vulkan/geg-vulkan.hpp"
@@ -16,7 +20,10 @@ namespace geg {
   VulkanContext::VulkanContext(std::shared_ptr<Window> window): m_window(std::move(window)) {
     m_device = std::make_shared<vulkan::Device>(m_window);
     m_swapchain = std::make_shared<vulkan::Swapchain>(m_window, m_device);
-    m_current_dimensions = m_window->dimensions();
+    m_current_dimensions = vk::Extent2D{
+        .width = m_window->dimensions().first,
+        .height = m_window->dimensions().second,
+    };
 
     create_depth_resources();
 
@@ -24,18 +31,31 @@ namespace geg {
     m_render_semaphore = m_device->vkdevice.createSemaphore(vk::SemaphoreCreateInfo{});
     const auto images_count = m_swapchain->image_count();
     m_swapchain_image_fences.resize(images_count);
+
+    // create fences
     for (auto& fence : m_swapchain_image_fences) {
       fence = m_device->vkdevice.createFence(vk::FenceCreateInfo{
           .flags = vk::FenceCreateFlagBits::eSignaled,
       });
     }
 
+    // create command buffers
     m_command_buffers = m_device->vkdevice.allocateCommandBuffers(vk::CommandBufferAllocateInfo{
         .commandPool = m_device->command_pool,
         .level = vk::CommandBufferLevel::ePrimary,
         .commandBufferCount = images_count,
     });
 
+    m_querey_pools.resize(images_count);
+    for (auto& q : m_querey_pools) {
+      vk::QueryPoolCreateInfo info{};
+      info.queryCount = 6;
+      info.queryType = vk::QueryType::eTimestamp;
+
+      q = m_device->vkdevice.createQueryPool(info);
+    }
+
+    m_early_depth_pass = std::make_unique<vulkan::DepthPass>(m_device);
     m_mesh_renderer = std::make_unique<vulkan::MeshRenderer>(m_device, m_swapchain->format());
     m_imgui_renderer = std::make_unique<vulkan::ImguiRenderer>(
         m_device, m_swapchain->format(), m_swapchain->image_count());
@@ -49,6 +69,9 @@ namespace geg {
     m_device->vkdevice.destroySemaphore(m_present_semaphore);
     for (const auto& fence : m_swapchain_image_fences)
       m_device->vkdevice.destroyFence(fence);
+
+    for (const auto& q : m_querey_pools)
+      m_device->vkdevice.destroyQueryPool(q);
   }
 
   void VulkanContext::create_depth_resources() {
@@ -96,7 +119,7 @@ namespace geg {
   }
 
   void VulkanContext::render(const Camera& camera, Scene* scene) {
-    if (m_current_dimensions.first == 0 || m_current_dimensions.second == 0) return;
+    if (m_current_dimensions.width == 0 || m_current_dimensions.height == 0) return;
 
     draw_debug_ui();
 
@@ -126,17 +149,23 @@ namespace geg {
     GEG_CORE_ASSERT(res == vk::Result::eSuccess, "Fence timeout")
     m_device->vkdevice.resetFences(m_swapchain_image_fences[m_current_image_index]);
 
-    m_mesh_renderer->projection = glm::perspective(
+    auto proj = glm::perspective(
         glm::radians(m_debug_ui_settings.fov),
-        (float)m_current_dimensions.first / (float)m_current_dimensions.second,
+        (float)m_current_dimensions.width / (float)m_current_dimensions.height,
         0.1f,
         100.f);
+
+    m_mesh_renderer->projection = proj;
+    m_early_depth_pass->projection = proj;
 
     auto cmd = m_command_buffers[m_current_image_index];
     cmd.begin(vk::CommandBufferBeginInfo{});
 
+    cmd.resetQueryPool(m_querey_pools[m_current_image_index], 0, 6);
+
     vulkan::Image color_target = m_swapchain->images()[m_current_image_index];
-    vulkan::Image depth_target = vulkan::Image{.view = m_depth_image_view};
+    vulkan::Image depth_target =
+        vulkan::Image{.view = m_depth_image_view, .extent = m_current_dimensions};
 
     m_device->transition_image_layout(
         color_target.image,
@@ -146,11 +175,27 @@ namespace geg {
         cmd);
 
     if (m_debug_ui_settings.mesh_renderer) {
+      cmd.writeTimestamp(
+          vk::PipelineStageFlagBits::eTopOfPipe, m_querey_pools[m_current_image_index], 0);
+      m_early_depth_pass->fill_commands(cmd, camera, scene, depth_target);
+      cmd.writeTimestamp(
+          vk::PipelineStageFlagBits::eTopOfPipe, m_querey_pools[m_current_image_index], 1);
+
+      cmd.writeTimestamp(
+          vk::PipelineStageFlagBits::eTopOfPipe, m_querey_pools[m_current_image_index], 2);
       m_mesh_renderer->fill_commands(cmd, camera, scene, color_target, depth_target);
+      cmd.writeTimestamp(
+          vk::PipelineStageFlagBits::eBottomOfPipe, m_querey_pools[m_current_image_index], 3);
     }
 
     if (m_debug_ui_settings.imgui_renderer) {
+      cmd.writeTimestamp(
+          vk::PipelineStageFlagBits::eTopOfPipe, m_querey_pools[m_current_image_index], 4);
+
       m_imgui_renderer->fill_commands(cmd, scene, color_target);
+
+      cmd.writeTimestamp(
+          vk::PipelineStageFlagBits::eBottomOfPipe, m_querey_pools[m_current_image_index], 5);
     }
 
     m_device->transition_image_layout(
@@ -182,12 +227,76 @@ namespace geg {
         .pImageIndices = &m_current_image_index,
     });
 
+    // TODO: fix this
+    // uint64_t timestamps[12];
+    // vkGetQueryPoolResults(
+    //     m_device->vkdevice,
+    //     m_querey_pools[m_current_image_index],
+    //     0,
+    //     6,
+    //     sizeof(timestamps),
+    //     timestamps,
+    //     2*sizeof(uint64_t),
+    //     VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
+
+    // for(int i = 0; i < 12; i++)
+    //   GEG_CORE_INFO("i{}: {}", i, timestamps[i]);
+
+    // double timestamp_p = m_device->physical_device.getProperties().limits.timestampPeriod;
+    // double depth_start = double(timestamp_p * timestamps[0]) / 1000000;
+    // double depth_end = double(timestamp_p * timestamps[1]) / 1000000;
+    // double depth_pass_delta = (depth_end - depth_start);
+
+    // double mesh_start = double(timestamp_p * timestamps[2]) / 1000000;
+    // double mesh_end = double(timestamp_p * timestamps[3]) / 1000000;
+    // double mesh_pass_delta = (mesh_end - mesh_start);
+
+    // double imgui_start = double(timestamp_p * timestamps[4]) / 1000000;
+    // double imgui_end = double(timestamp_p * timestamps[5]) / 1000000;
+    // double imgui_pass_delta = (imgui_end - imgui_start);
+
+    // double time_before = 0;
+
+    // legit::ProfilerTask tasks[3];
+    // tasks[0] = {
+    //     .startTime = time_before,
+    //     .endTime = time_before + depth_pass_delta,
+    //     .name = "early depth pass",
+    //     .color = legit::Colors::clouds,
+    // };
+    // time_before += depth_pass_delta;
+
+    // tasks[1] = {
+    //     .startTime = time_before,
+    //     .endTime = time_before + mesh_pass_delta,
+    //     .name = "mesh pass",
+    //     .color = legit::Colors::emerald,
+    // };
+    // time_before += mesh_pass_delta;
+
+    // tasks[2] = {
+    //     .startTime = time_before,
+    //     .endTime = time_before + imgui_pass_delta,
+    //     .name = "imgui pass",
+    //     .color = legit::Colors::wisteria,
+    // };
+
+    // ImGui::Begin("Gpu profiler", 0, ImGuiWindowFlags_NoScrollbar);
+    // ImGui::Text("Frame time: %fms (%u fps)", Timer::delta() * 1000, Timer::fps());
+    // m_profiler_graph.LoadFrameData(tasks, 3);
+    // test.gpuGraph.LoadFrameData(tasks, 3);
+    // m_profiler_graph.RenderTimings(300, 20, 200, Timer::frame_count());
+    // m_profiler_graph.maxFrameTime = 500 / 1000.f;
+    // ImGui::SliderInt("Profiler zoom", &m_profiler_zoom, 1, 1000);
+    // ImGui::End();
+
+    // test.gpuGraph.maxFrameTime = 500.f / 1000;
+    // test.Render();
+
     if (present_res == vk::Result::eSuboptimalKHR)
       should_resize_swapchain = true;
     else if (present_res != vk::Result::eSuccess)
-      GEG_CORE_ASSERT(false, "unkonwn error when presenting image")
-
-    // render stuff
+      GEG_CORE_ASSERT(false, "unkonwn error when presenting image");
   }
 
   void VulkanContext::draw_debug_ui() {
@@ -198,7 +307,7 @@ namespace geg {
       ImGui::Text("Device name: %s", props.deviceName.data());
       ImGui::Text("Device type: %s", vk::to_string(props.deviceType).data());
       ImGui::Text(
-          "Current dimensions: %d, %d", m_current_dimensions.first, m_current_dimensions.second);
+          "Current dimensions: %d, %d", m_current_dimensions.width, m_current_dimensions.height);
       ImGui::Text("Current image index: %d", m_current_image_index);
     }
 
@@ -236,8 +345,8 @@ namespace geg {
 
         ImGui::EndCombo();
       }
-      ImGui::Checkbox("ImGui Renderer: ", &m_debug_ui_settings.imgui_renderer);
-      ImGui::Checkbox("Mesh Renderer: ", &m_debug_ui_settings.mesh_renderer);
+      ImGui::Checkbox("Render ImGui", &m_debug_ui_settings.imgui_renderer);
+      ImGui::Checkbox("Render Geometry", &m_debug_ui_settings.mesh_renderer);
     }
     ImGui::End();
   }

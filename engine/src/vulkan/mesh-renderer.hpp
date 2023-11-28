@@ -13,7 +13,6 @@ namespace geg::vulkan {
   class MeshRenderer {
   public:
     MeshRenderer(const std::shared_ptr<Device>& device, vk::Format img_fomrat);
-
     ~MeshRenderer();
 
     void fill_commands(

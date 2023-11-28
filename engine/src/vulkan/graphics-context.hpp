@@ -1,6 +1,5 @@
 #pragma once
 
-#include <sys/types.h>
 #include "assets/asset-manager.hpp"
 #include "imgui-renderer.hpp"
 #include "core/window.hpp"
@@ -9,9 +8,14 @@
 #include "renderer/camera.hpp"
 
 #include "vulkan/device.hpp"
+#include "vulkan/early-depth-pass.hpp"
 #include "vulkan/swapchain.hpp"
 #include "mesh-renderer.hpp"
 #include "ecs/scene.hpp"
+
+// legit profiler
+#include "ImGuiProfilerRenderer.h"
+#include "ProfilerTask.h"
 
 namespace geg {
   class VulkanContext {
@@ -21,7 +25,7 @@ namespace geg {
 
     void render(const Camera& camera, Scene* scene);
     bool resize(const WindowResizeEvent& new_dim) {
-      m_current_dimensions = {new_dim.width(), new_dim.height()};
+      m_current_dimensions = vk::Extent2D{.width = new_dim.width(), .height = new_dim.height()};
       should_resize_swapchain = true;
 
       return false;
@@ -58,12 +62,13 @@ namespace geg {
 
     std::shared_ptr<vulkan::Device> m_device;
     std::shared_ptr<vulkan::Swapchain> m_swapchain;
-    std::pair<uint32_t, uint32_t> m_current_dimensions;
+    vk::Extent2D m_current_dimensions;
     uint32_t m_current_image_index = 0;
 
     std::pair<vk::Image, VmaAllocation> m_depth_image = {nullptr, nullptr};
     vk::ImageView m_depth_image_view;
 
+    std::unique_ptr<vulkan::DepthPass> m_early_depth_pass;
     std::unique_ptr<vulkan::MeshRenderer> m_mesh_renderer;
     std::unique_ptr<vulkan::ImguiRenderer> m_imgui_renderer;
 
@@ -71,7 +76,13 @@ namespace geg {
     vk::Semaphore m_render_semaphore;
     std::vector<vk::Fence> m_swapchain_image_fences;
     std::vector<vk::CommandBuffer> m_command_buffers;
+    std::vector<vk::QueryPool> m_querey_pools;
+    // ImGuiUtils::ProfilerGraph m_profiler_graph{200};
+    // ImGuiUtils::ProfilersWindow test;
+    // int32_t m_profiler_zoom = 5;
 
     bool should_resize_swapchain = false;
-  };
-}    // namespace geg
+
+  }; // namespace geg
+}
+        

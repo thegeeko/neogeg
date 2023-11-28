@@ -1,50 +1,37 @@
-#include "mesh-renderer.hpp"
-#include "assets/asset-manager.hpp"
-#include "glm/gtc/matrix_transform.hpp"
-#include "imgui.h"
+#include "early-depth-pass.hpp"
 #include "ecs/components.hpp"
 
 namespace geg::vulkan {
-
-  MeshRenderer::MeshRenderer(const std::shared_ptr<Device>& device, vk::Format img_format):
-      m_device(device) {
-    init_pipeline(img_format);
+  DepthPass::DepthPass(const std::shared_ptr<Device>& device): m_device(device) {
+    init_pipeline();
   }
 
-  MeshRenderer::~MeshRenderer() {
-    m_device->vkdevice.destroyPipeline(m_pipeline);
+  DepthPass::~DepthPass() {
     m_device->vkdevice.destroyPipelineLayout(m_pipeline_layout);
+    m_device->vkdevice.destroyPipeline(m_pipeline);
   }
 
-  void MeshRenderer::fill_commands(
-      const vk::CommandBuffer& cmd,
-      const Camera& camera,
-      Scene* scene,
-      const Image& color_target,
-      const Image& depth_target) {
+  void DepthPass::fill_commands(
+      const vk::CommandBuffer& cmd, const Camera& camera, Scene* scene, const Image& depth_target) {
     namespace cmps = components;
-    if (!scene) return;
-    auto& asset_manager = AssetManager::get();
-
-    vk::RenderingAttachmentInfoKHR color_attachment_info{};
-    color_attachment_info.imageView = color_target.view;
-    color_attachment_info.imageLayout = vk::ImageLayout::eColorAttachmentOptimal;
-    color_attachment_info.loadOp = vk::AttachmentLoadOp::eClear;
-    color_attachment_info.storeOp = vk::AttachmentStoreOp::eStore;
-    color_attachment_info.clearValue = vk::ClearValue{};
+    GEG_CORE_ASSERT(scene, "rendering empty scene");
 
     vk::RenderingAttachmentInfoKHR depth_attachment_info{};
     depth_attachment_info.imageView = depth_target.view;
     depth_attachment_info.imageLayout = vk::ImageLayout::eDepthAttachmentOptimal;
-    depth_attachment_info.loadOp = vk::AttachmentLoadOp::eLoad;
+    depth_attachment_info.loadOp = vk::AttachmentLoadOp::eClear;
     depth_attachment_info.storeOp = vk::AttachmentStoreOp::eStore;
-    depth_attachment_info.clearValue = vk::ClearValue{};
+    depth_attachment_info.clearValue = vk::ClearValue{
+        .depthStencil = {
+            .depth = 1.0f,
+            .stencil = 0,
+        }};
 
     vk::RenderingInfoKHR rendering_info{};
-    rendering_info.renderArea.extent = color_target.extent;
-    rendering_info.pColorAttachments = &color_attachment_info;
+    rendering_info.renderArea.extent = depth_target.extent;
+    rendering_info.pColorAttachments = nullptr;
     rendering_info.pDepthAttachment = &depth_attachment_info;
-    rendering_info.colorAttachmentCount = 1;
+    rendering_info.colorAttachmentCount = 0;
     rendering_info.layerCount = 1;
 
     cmd.beginRendering(rendering_info);
@@ -55,8 +42,8 @@ namespace geg::vulkan {
         vk::Viewport{
             .x = 0,
             .y = 0,
-            .width = static_cast<float>(color_target.extent.width),
-            .height = static_cast<float>(color_target.extent.height),
+            .width = static_cast<float>(depth_target.extent.width),
+            .height = static_cast<float>(depth_target.extent.height),
             .minDepth = 0,
             .maxDepth = 1,
         });
@@ -65,31 +52,10 @@ namespace geg::vulkan {
         0,
         vk::Rect2D{
             .offset = {},
-            .extent = color_target.extent,
+            .extent = depth_target.extent,
         });
 
-    const auto& light_view = scene->get_reg().view<cmps::Light, cmps::Transform>();
-    uint32_t i = 0;
-    for (auto& light : light_view) {
-      auto& light_color = light_view.get<cmps::Light>(light).light_color;
-      auto& pos = light_view.get<cmps::Transform>(light).translation;
-
-      global_data.lights[i] = {
-          .pos = {pos, 1.0f},
-          .color = light_color,
-      };
-
-      i++;
-    }
-
-    global_data.lights_count = i;
-
-    global_data.proj = projection;
-    global_data.view = camera.view_matrix();
     global_data.proj_view = projection * camera.view_matrix();
-    global_data.cam_pos = camera.position();
-
-    // update the ubos
     m_global_ubo.write_at_frame(&global_data, sizeof(global_data), 0);
 
     cmd.bindDescriptorSets(
@@ -101,15 +67,17 @@ namespace geg::vulkan {
 
     const auto objects = scene->get_reg().group<cmps::PBR>(entt::get<cmps::Transform, cmps::Mesh>);
 
+    auto& asset_manager = AssetManager::get();
+    std::array<glm::mat4, 2> push_data;
+
     for (auto obj : objects) {
-      const auto& pbr_data = objects.get<cmps::PBR>(obj);
       const auto& transform = objects.get<cmps::Transform>(obj);
       const auto& mesh = objects.get<cmps::Mesh>(obj);
 
-      if (!pbr_data || !mesh) continue;
+      if (!mesh) continue;
 
-      push_data.model = transform.model_matrix();
-      push_data.norm = transform.normal_matrix();
+      push_data[0] = transform.model_matrix();
+      push_data[1] = transform.normal_matrix();
 
       cmd.pushConstants(
           m_pipeline_layout,
@@ -118,32 +86,16 @@ namespace geg::vulkan {
           sizeof(push_data),
           &push_data);
 
-      objec_data.albedo_only = pbr_data.albedo_only;
-      objec_data.metallic_only = pbr_data.metallic_only;
-      objec_data.roughness_only = pbr_data.roughness_only;
-      objec_data.ao = pbr_data.AO;
-
-      m_object_ubo.write_at_frame(&objec_data, sizeof(objec_data), 0);
-
       auto& mesh_descriptor = asset_manager.get_mesh(mesh.id).descriptor_set;
-      auto& albedo_descriptor = asset_manager.get_texture(pbr_data.albedo).descriptor_set;
-      auto& metallic_descriptor = asset_manager.get_texture(pbr_data.metallic).descriptor_set;
-      auto& roughness_descriptor = asset_manager.get_texture(pbr_data.roughness).descriptor_set;
 
       cmd.bindDescriptorSets(
           vk::PipelineBindPoint::eGraphics,
           m_pipeline_layout,
           1,
           {
-              m_object_ubo.descriptor_set,
               mesh_descriptor,
-              albedo_descriptor,
-              metallic_descriptor,
-              roughness_descriptor,
           },
-          {
-              m_object_ubo.frame_offset(0),
-          });
+          {});
 
       uint32_t indcies_count = asset_manager.get_mesh(mesh.id).indices_count();
       cmd.draw(indcies_count, 1, 0, 0);
@@ -152,9 +104,8 @@ namespace geg::vulkan {
     cmd.endRendering();
   }
 
-  void MeshRenderer::init_pipeline(vk::Format img_format) {
+  void DepthPass::init_pipeline() {
     auto vert_shader_stage = m_shader.vert_stage_info;
-    auto frag_shader_stage = m_shader.frag_stage_info;
 
     auto vertex_input_info = vk::PipelineVertexInputStateCreateInfo{};
 
@@ -196,8 +147,8 @@ namespace geg::vulkan {
 
     auto depth_stencil = vk::PipelineDepthStencilStateCreateInfo{
         .depthTestEnable = VK_TRUE,
-        .depthWriteEnable = VK_FALSE,
-        .depthCompareOp = vk::CompareOp::eEqual,
+        .depthWriteEnable = VK_TRUE,
+        .depthCompareOp = vk::CompareOp::eLess,
         .depthBoundsTestEnable = VK_FALSE,
         .stencilTestEnable = VK_FALSE,
     };
@@ -217,12 +168,11 @@ namespace geg::vulkan {
     vk::PushConstantRange push_range{
         .stageFlags = vk::ShaderStageFlagBits::eAllGraphics,
         .offset = 0,
-        .size = sizeof(push_data),
+        .size = 128,
     };
 
     // @TODO: automate this
     auto gubo_layout = m_global_ubo.descriptor_set_layout;
-    auto oubo_layout = m_object_ubo.descriptor_set_layout;
     auto geometry_layout =
         m_device->build_descriptor()
             .bind_buffer_layout(
@@ -232,20 +182,9 @@ namespace geg::vulkan {
             .build_layout()
             .value();
 
-    auto texture_layout =
-        m_device->build_descriptor()
-            .bind_image_layout(
-                0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eAllGraphics)
-            .build_layout()
-            .value();
-
-    const std::array<vk::DescriptorSetLayout, 6> layouts = {
+    const std::array<vk::DescriptorSetLayout, 2> layouts = {
         gubo_layout,
-        oubo_layout,
         geometry_layout,
-        texture_layout,
-        texture_layout,
-        texture_layout,
     };
 
     m_pipeline_layout = m_device->vkdevice.createPipelineLayout(vk::PipelineLayoutCreateInfo{
@@ -257,8 +196,8 @@ namespace geg::vulkan {
 
     // dynamic rendering
     vk::PipelineRenderingCreateInfoKHR rendering_info{
-        .colorAttachmentCount = 1,
-        .pColorAttachmentFormats = &img_format,
+        .colorAttachmentCount = 0,
+        .pColorAttachmentFormats = nullptr,
         .depthAttachmentFormat = vk::Format::eD32SfloatS8Uint,
     };
 
@@ -266,8 +205,8 @@ namespace geg::vulkan {
         {},
         {
             .pNext = &rendering_info,
-            .stageCount = 2,
-            .pStages = std::array{vert_shader_stage, frag_shader_stage}.data(),
+            .stageCount = 1,
+            .pStages = &vert_shader_stage,
             .pVertexInputState = &vertex_input_info,
             .pInputAssemblyState = &input_assembly,
             .pViewportState = &viewport_state,
@@ -287,5 +226,4 @@ namespace geg::vulkan {
 
     m_pipeline = result.value;
   }
-
 }    // namespace geg::vulkan

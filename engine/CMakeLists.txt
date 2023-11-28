@@ -49,8 +49,8 @@ add_library(geg STATIC ${GEG_SRC} ${GEG_HEADERS})
 
 # link dependencies
 target_link_libraries(geg PUBLIC Vulkan::Vulkan)
-target_link_libraries(geg PUBLIC Vulkan::glslang)
 target_link_libraries(geg PUBLIC Vulkan::SPIRV-Tools)
+target_link_libraries(geg PUBLIC Vulkan::glslang)
 target_link_libraries(geg PUBLIC spdlog::spdlog)
 target_link_libraries(geg PUBLIC glfw)
 target_link_libraries(geg PUBLIC glm)
@@ -67,4 +67,5 @@ target_precompile_headers(geg PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/pch.hpp")
 
 # ============== include =============
 target_include_directories(geg PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_include_directories(geg PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/lib/ligit-profiler")
 #=====================================
