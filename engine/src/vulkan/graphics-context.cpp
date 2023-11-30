@@ -292,7 +292,7 @@ namespace geg {
     ImGui::Begin("Gpu profiler", 0, ImGuiWindowFlags_NoScrollbar);
     ImGui::Text("Frame time: %fms (%u fps)", Timer::delta() * 1000, Timer::fps());
     m_profiler_graph.LoadFrameData(tasks, 3);
-    m_profiler_graph.RenderTimings(1000, 20, 100, Timer::frame_count());
+    m_profiler_graph.RenderTimings(1000, 20, 100, -Timer::frame_count());
     m_profiler_graph.maxFrameTime = 1 / 1000.f;
     ImGui::End();
 
