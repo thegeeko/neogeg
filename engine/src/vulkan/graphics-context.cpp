@@ -228,70 +228,73 @@ namespace geg {
     });
 
     // TODO: fix this
-    // uint64_t timestamps[12];
-    // vkGetQueryPoolResults(
-    //     m_device->vkdevice,
-    //     m_querey_pools[m_current_image_index],
-    //     0,
-    //     6,
-    //     sizeof(timestamps),
-    //     timestamps,
-    //     2*sizeof(uint64_t),
-    //     VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
+    uint64_t timestamps[12];
+    vkGetQueryPoolResults(
+        m_device->vkdevice,
+        m_querey_pools[m_current_image_index],
+        0,
+        6,
+        sizeof(timestamps),
+        timestamps,
+        2*sizeof(uint64_t),
+        VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
 
-    // for(int i = 0; i < 12; i++)
-    //   GEG_CORE_INFO("i{}: {}", i, timestamps[i]);
+    double timestamp_p = m_device->physical_device.getProperties().limits.timestampPeriod;
+    double depth_start = double(timestamp_p * timestamps[0]) / 1000000;
+    double depth_end = double(timestamp_p * timestamps[2]) / 1000000;
+    double depth_pass_delta = (depth_end - depth_start) / 1000;
 
-    // double timestamp_p = m_device->physical_device.getProperties().limits.timestampPeriod;
-    // double depth_start = double(timestamp_p * timestamps[0]) / 1000000;
-    // double depth_end = double(timestamp_p * timestamps[1]) / 1000000;
-    // double depth_pass_delta = (depth_end - depth_start);
+    double mesh_start = double(timestamp_p * timestamps[4]) / 1000000;
+    double mesh_end = double(timestamp_p * timestamps[6]) / 1000000;
+    double mesh_pass_delta = (mesh_end - mesh_start) / 1000;
 
-    // double mesh_start = double(timestamp_p * timestamps[2]) / 1000000;
-    // double mesh_end = double(timestamp_p * timestamps[3]) / 1000000;
-    // double mesh_pass_delta = (mesh_end - mesh_start);
+    double imgui_start = double(timestamp_p * timestamps[8]) / 1000000;
+    double imgui_end = double(timestamp_p * timestamps[10]) / 1000000;
+    double imgui_pass_delta = (imgui_end - imgui_start) / 1000;
 
-    // double imgui_start = double(timestamp_p * timestamps[4]) / 1000000;
-    // double imgui_end = double(timestamp_p * timestamps[5]) / 1000000;
-    // double imgui_pass_delta = (imgui_end - imgui_start);
+    double time_before = 0;
 
-    // double time_before = 0;
+    ImGui::Begin("Time");
+    ImGui::Text("depth delta: %f", depth_pass_delta);
+    ImGui::Text("mesh delta: %f", mesh_pass_delta);
+    ImGui::Text("imgui delta: %f", imgui_pass_delta);
+    ImGui::Separator();
 
-    // legit::ProfilerTask tasks[3];
-    // tasks[0] = {
-    //     .startTime = time_before,
-    //     .endTime = time_before + depth_pass_delta,
-    //     .name = "early depth pass",
-    //     .color = legit::Colors::clouds,
-    // };
-    // time_before += depth_pass_delta;
+    legit::ProfilerTask tasks[3];
+    tasks[0] = {
+        .startTime = time_before,
+        .endTime = time_before + depth_pass_delta,
+        .name = "early depth pass",
+        .color = legit::Colors::clouds,
+    };
+    ImGui::Text("depth delta s: %f - e: %f", 0.f, depth_pass_delta);
+    time_before += depth_pass_delta;
 
-    // tasks[1] = {
-    //     .startTime = time_before,
-    //     .endTime = time_before + mesh_pass_delta,
-    //     .name = "mesh pass",
-    //     .color = legit::Colors::emerald,
-    // };
-    // time_before += mesh_pass_delta;
+    tasks[1] = {
+        .startTime = time_before,
+        .endTime = time_before + mesh_pass_delta,
+        .name = "mesh pass",
+        .color = legit::Colors::emerald,
+    };
+    ImGui::Text("mesh delta s:%f - e: %f",time_before, time_before + mesh_pass_delta);
+    time_before += mesh_pass_delta;
 
-    // tasks[2] = {
-    //     .startTime = time_before,
-    //     .endTime = time_before + imgui_pass_delta,
-    //     .name = "imgui pass",
-    //     .color = legit::Colors::wisteria,
-    // };
+    tasks[2] = {
+        .startTime = time_before,
+        .endTime = time_before + imgui_pass_delta,
+        .name = "imgui pass",
+        .color = legit::Colors::wisteria,
+    };
+    ImGui::Text("imgui delta s: %f - e:%f", time_before, time_before + imgui_pass_delta);
 
-    // ImGui::Begin("Gpu profiler", 0, ImGuiWindowFlags_NoScrollbar);
-    // ImGui::Text("Frame time: %fms (%u fps)", Timer::delta() * 1000, Timer::fps());
-    // m_profiler_graph.LoadFrameData(tasks, 3);
-    // test.gpuGraph.LoadFrameData(tasks, 3);
-    // m_profiler_graph.RenderTimings(300, 20, 200, Timer::frame_count());
-    // m_profiler_graph.maxFrameTime = 500 / 1000.f;
-    // ImGui::SliderInt("Profiler zoom", &m_profiler_zoom, 1, 1000);
-    // ImGui::End();
+    ImGui::End();
 
-    // test.gpuGraph.maxFrameTime = 500.f / 1000;
-    // test.Render();
+    ImGui::Begin("Gpu profiler", 0, ImGuiWindowFlags_NoScrollbar);
+    ImGui::Text("Frame time: %fms (%u fps)", Timer::delta() * 1000, Timer::fps());
+    m_profiler_graph.LoadFrameData(tasks, 3);
+    m_profiler_graph.RenderTimings(1000, 20, 100, Timer::frame_count());
+    m_profiler_graph.maxFrameTime = 1 / 1000.f;
+    ImGui::End();
 
     if (present_res == vk::Result::eSuboptimalKHR)
       should_resize_swapchain = true;

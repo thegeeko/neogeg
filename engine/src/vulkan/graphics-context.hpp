@@ -77,9 +77,7 @@ namespace geg {
     std::vector<vk::Fence> m_swapchain_image_fences;
     std::vector<vk::CommandBuffer> m_command_buffers;
     std::vector<vk::QueryPool> m_querey_pools;
-    // ImGuiUtils::ProfilerGraph m_profiler_graph{200};
-    // ImGuiUtils::ProfilersWindow test;
-    // int32_t m_profiler_zoom = 5;
+    ImGuiUtils::ProfilerGraph m_profiler_graph{500};
 
     bool should_resize_swapchain = false;
 
