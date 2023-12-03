@@ -118,17 +118,17 @@ namespace geg::vulkan {
           sizeof(push_data),
           &push_data);
 
-      objec_data.albedo_only = pbr_data.albedo_only;
-      objec_data.metallic_only = pbr_data.metallic_only;
-      objec_data.roughness_only = pbr_data.roughness_only;
+      objec_data.color_factor = pbr_data.color_factor;
+      objec_data.metallic_factor = pbr_data.metallic_factor;
+      objec_data.roughness_factor = pbr_data.roughness_factor;
       objec_data.ao = pbr_data.AO;
 
       m_object_ubo.write_at_frame(&objec_data, sizeof(objec_data), 0);
 
       auto& mesh_descriptor = asset_manager.get_mesh(mesh.id).descriptor_set;
       auto& albedo_descriptor = asset_manager.get_texture(pbr_data.albedo).descriptor_set;
-      auto& metallic_descriptor = asset_manager.get_texture(pbr_data.metallic).descriptor_set;
-      auto& roughness_descriptor = asset_manager.get_texture(pbr_data.roughness).descriptor_set;
+      auto& metallic_descriptor = asset_manager.get_texture(pbr_data.metallic_roughness).descriptor_set;
+      auto& normal_descriptor = asset_manager.get_texture(pbr_data.normal_map).descriptor_set;
 
       cmd.bindDescriptorSets(
           vk::PipelineBindPoint::eGraphics,
@@ -139,7 +139,7 @@ namespace geg::vulkan {
               mesh_descriptor,
               albedo_descriptor,
               metallic_descriptor,
-              roughness_descriptor,
+              normal_descriptor,
           },
           {
               m_object_ubo.frame_offset(0),

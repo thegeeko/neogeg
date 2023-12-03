@@ -1,9 +1,12 @@
 #version 450
 
+#extension GL_EXT_debug_printf : enable
 struct VertexData {
 	float x, y, z;
 	float nx, ny, nz;
+	float tx, ty, tz;
 	float u, v;
+	float _x, _y; // padding not used currently
 };
 
 layout (set = 0, binding = 0) uniform GlobalUbo {

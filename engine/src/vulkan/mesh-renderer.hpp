@@ -2,6 +2,7 @@
 
 #include "assets/asset-manager.hpp"
 #include "ecs/scene.hpp"
+#include "glm/fwd.hpp"
 #include "shader.hpp"
 #include "assets/meshes/meshes.hpp"
 #include "uniform-buffer.hpp"
@@ -43,10 +44,11 @@ namespace geg::vulkan {
     } global_data{};
 
     struct {
-      uint32_t albedo_only = false;
-      uint32_t metallic_only = false;
-      uint32_t roughness_only = false;
+      glm::vec3 color_factor;
+      float metallic_factor = false;
+      float roughness_factor = false;
       float ao = 1.0f;
+      glm::vec2 padding{0};
     } objec_data{};
 
     struct {

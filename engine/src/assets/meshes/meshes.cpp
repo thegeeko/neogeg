@@ -5,8 +5,15 @@
 #include "vk_mem_alloc.h"
 
 namespace geg::vulkan {
-  Mesh::Mesh(const fs::path& path, const std::shared_ptr<Device>& device) {
-    m_device = device;
+  Mesh::Mesh(
+      const std::shared_ptr<Device>& device,
+      const std::vector<Vertex>& vertices,
+      const std::vector<uint32_t>& indices):
+      m_device(device) {
+    upload_to_gpu(vertices, indices);
+  }
+
+  Mesh::Mesh(const fs::path& path, const std::shared_ptr<Device>& device): m_device(device) {
     m_path = path;
     Assimp::Importer importer;
     const aiScene* scene = importer.ReadFile(
@@ -23,11 +30,13 @@ namespace geg::vulkan {
     for (uint32_t i = 0; i != mesh->mNumVertices; i++) {
       const auto v = mesh->mVertices[i];
       const auto n = mesh->mNormals[i];
+      const auto tan = mesh->mTangents[i];
       const auto t = mesh->mTextureCoords[0] ? mesh->mTextureCoords[0][i] : aiVector3D{0, 0, 0};
 
       vertices.push_back(Vertex{
           .position = {v.x, v.y, v.z},
           .normal = {n.x, n.y, n.z},
+          .tangent = {tan.x, tan.y, tan.z},
           .tex_coord = {t.x, t.y},
       });
     }
@@ -39,6 +48,11 @@ namespace geg::vulkan {
         indices.push_back(face.mIndices[j]);
     }
 
+    upload_to_gpu(vertices, indices);
+  }
+
+  void Mesh::upload_to_gpu(
+      const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices) {
     const vk::DeviceSize vertex_size = sizeof(Vertex) * vertices.size();
     const vk::DeviceSize index_size = sizeof(indices[1]) * indices.size();
 
@@ -89,8 +103,8 @@ namespace geg::vulkan {
     memcpy(indecies_mapping_addr, indices.data(), index_size);
     vmaUnmapMemory(m_device->allocator, staging_alloc);
 
-    device->single_time_command(
-        [&](auto cmd) { device->copy_buffer(staging_buffer, buffer, size, cmd); });
+    m_device->single_time_command(
+        [&](auto cmd) { m_device->copy_buffer(staging_buffer, buffer, size, cmd); });
 
     vmaDestroyBuffer(m_device->allocator, staging_buffer, staging_alloc);
 
@@ -106,7 +120,7 @@ namespace geg::vulkan {
         .range = size - index_offset,    // sizeof(indices[1]) * indices.size() 144
     };
 
-    auto [descriptor, layout] = device->build_descriptor()
+    auto [descriptor, layout] = m_device->build_descriptor()
                                     .bind_buffer(
                                         0,
                                         &vertx_desc_buff,

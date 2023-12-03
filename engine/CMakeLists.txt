@@ -20,6 +20,14 @@ add_subdirectory("lib/vma")
 add_subdirectory("lib/imgui")
 add_subdirectory("lib/stb")
 add_subdirectory("lib/entt")
+
+set(TINYGLTF_BUILD_LOADER_EXAMPLE OFF CACHE BOOL "" FORCE)
+set(TINYGLTF_INSTALL OFF CACHE BOOL "" FORCE)
+add_subdirectory("lib/tinygltf")
+
+target_compile_definitions(tinygltf PUBLIC TINYGLTF_NO_EXTERNAL_IMAGE)
+target_compile_definitions(tinygltf PUBLIC TINYGLTF_NO_STB_IMAGE)
+target_compile_definitions(tinygltf PUBLIC TINYGLTF_USE_CPP14)
 # ===================================
 
 # =============== geg ==============
@@ -59,7 +67,7 @@ target_link_libraries(geg PUBLIC imgui)
 target_link_libraries(geg PUBLIC stb)
 target_link_libraries(geg PUBLIC assimp)
 target_link_libraries(geg PUBLIC EnTT)
-
+target_link_libraries(geg PUBLIC tinygltf)
 
 # pre compiled header
 target_precompile_headers(geg PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/pch.hpp")

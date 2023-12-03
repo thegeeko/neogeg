@@ -55,18 +55,16 @@ namespace geg::components {
 
   struct PBR {
     PBR() = default;
-    PBR(TextureId albedo, TextureId metallic, TextureId roughness):
-        albedo(albedo), roughness(roughness), metallic(metallic) {}
 
-    operator bool() const { return albedo > -1 && roughness > -1 && metallic > -1; }
+    operator bool() const { return albedo > -1 && metallic_roughness > -1 && normal_map > -1; }
 
     TextureId albedo = -1;
-    TextureId roughness = -1;
-    TextureId metallic = -1;
+    TextureId metallic_roughness = -1;
+    TextureId normal_map = -1;
 
-    bool albedo_only = false;
-    bool roughness_only = false;
-    bool metallic_only = false;
+    glm::vec3 color_factor{1};
+    float metallic_factor = 1;
+    float roughness_factor = 1;
 
     float AO = 0.0f;
   };

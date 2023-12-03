@@ -12,12 +12,18 @@ namespace geg::vulkan {
   struct Vertex {
     glm::vec3 position;
     glm::vec3 normal;
+    glm::vec3 tangent;
     glm::vec2 tex_coord;
+    glm::vec2 padding = {0, 0};
   };
 
   class Mesh {
   public:
     Mesh(const fs::path& path, const std::shared_ptr<Device>& device);
+    Mesh(
+        const std::shared_ptr<Device>& device,
+        const std::vector<Vertex>& vertices,
+        const std::vector<uint32_t>& indices);
     ~Mesh();
 
     vk::DeviceSize size;
@@ -36,5 +42,7 @@ namespace geg::vulkan {
     std::shared_ptr<Device> m_device;
     VmaAllocation m_alloc;
     fs::path m_path;
+
+    void upload_to_gpu(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
   };
 }    // namespace geg::vulkan

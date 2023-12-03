@@ -25,3 +25,6 @@
 [submodule "engine/lib/ligit-profiler"]
 	path = engine/lib/ligit-profiler
 	url = https://github.com/Raikiri/LegitProfiler.git
+[submodule "engine/lib/tinygltf"]
+	path = engine/lib/tinygltf
+	url = https://github.com/syoyo/tinygltf

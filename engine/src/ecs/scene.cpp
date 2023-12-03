@@ -31,4 +31,5 @@ namespace geg {
     registry.destroy(entity);
   }
 
+
 }    // namespace geg

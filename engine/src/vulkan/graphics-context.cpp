@@ -183,7 +183,7 @@ namespace geg {
 
       cmd.writeTimestamp(
           vk::PipelineStageFlagBits::eTopOfPipe, m_querey_pools[m_current_image_index], 2);
-      m_mesh_renderer->fill_commands(cmd, camera, scene, color_target, depth_target);
+      // m_mesh_renderer->fill_commands(cmd, camera, scene, color_target, depth_target);
       cmd.writeTimestamp(
           vk::PipelineStageFlagBits::eBottomOfPipe, m_querey_pools[m_current_image_index], 3);
     }

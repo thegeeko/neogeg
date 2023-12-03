@@ -198,40 +198,17 @@ namespace geg {
         const std::string albedo_name =
             fmt::format("{} - id({})", asset_manager.get_texture_name(pbr.albedo), pbr.albedo);
         const std::string metallic_name =
-            fmt::format("{} - id({})", asset_manager.get_texture_name(pbr.metallic), pbr.metallic);
-        const std::string roughness_name = fmt::format(
-            "{} - id({})", asset_manager.get_texture_name(pbr.roughness), pbr.roughness);
+            fmt::format("{} - id({})", asset_manager.get_texture_name(pbr.metallic_roughness), pbr.metallic_roughness);
+        const std::string normal_name = fmt::format(
+            "{} - id({})", asset_manager.get_texture_name(pbr.normal_map), pbr.normal_map);
 
-        ui::draw_text("Albedo", albedo_name.c_str(), {0.2f, 0.7f, 0.2f, 1.0f}, [&pbr] {
-          if (ImGui::Button("Only")) {
-            pbr.albedo_only = true;
-            pbr.metallic_only = false;
-            pbr.roughness_only = false;
-          }
-        });
+        ui::draw_text("Albedo", albedo_name.c_str(), {0.2f, 0.7f, 0.2f, 1.0f});
 
-        ui::draw_text("Metallic", metallic_name.c_str(), {0.2f, 0.7f, 0.2f, 1.0f}, [&pbr] {
-          if (ImGui::Button("Only")) {
-            pbr.albedo_only = false;
-            pbr.metallic_only = true;
-            pbr.roughness_only = false;
-          }
-        });
+        ui::draw_text("Metallic Roughness", metallic_name.c_str(), {0.2f, 0.7f, 0.2f, 1.0f});
 
-        ui::draw_text("Roughness", roughness_name.c_str(), {0.2f, 0.7f, 0.2f, 1.0f}, [&pbr] {
-          if (ImGui::Button("Only")) {
-            pbr.albedo_only = false;
-            pbr.metallic_only = false;
-            pbr.roughness_only = true;
-          }
-        });
+        ui::draw_text("Normal Map", normal_name.c_str(), {0.2f, 0.7f, 0.2f, 1.0f});
 
         ui::draw_smth("Ao", [&pbr] { ImGui::SliderFloat("##AO", &pbr.AO, 0.0f, 1.0f); });
-        if (ImGui::Button("Reset")) {
-          pbr.albedo_only = false;
-          pbr.metallic_only = false;
-          pbr.roughness_only = false;
-        }
         ImGui::Separator();
       }
 
