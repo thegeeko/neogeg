@@ -1,184 +1,212 @@
 #version 450
-//#extension GL_EXT_debug_printf : enable
+
+#extension GL_EXT_debug_printf : enable
+
+#define assert( condition, value ) if( condition ){ \
+       debugPrintfEXT( value ); \
+     } 
+
+#define printf(value) debugPrintfEXT(value)
+#define PI 3.14159265358979323846264338327950
+#define RECIPROCAL_PI 0.3183098861837907
 
 struct VertexData {
-	float x, y, z;
-	float nx, ny, nz;
-	float u, v;
+  float x, y, z;
+  float nx, ny, nz;
+  float tx, ty, tz;
+  float u, v;
+  float _x, _y; // padding not used currently
 };
 
-
 struct Light {
-	vec3 pos;
-	vec4 color;
+  vec3 pos;
+  vec4 color;
 };
 
 const uint MAX_NUM_OF_LIGHTS = 100;
 
 layout (set = 0, binding = 0) uniform GlobalUbo {
-	mat4 proj;
-	mat4 view;
-	mat4 proj_view;
-	vec3 cam_pos;
-	uint num_of_lights;
-	Light lights[MAX_NUM_OF_LIGHTS];
+  mat4 proj;
+  mat4 view;
+  mat4 proj_view;
+  vec3 cam_pos;
+  uint num_of_lights;
+  Light lights[MAX_NUM_OF_LIGHTS];
 } gubo;
 
 layout (set = 1, binding = 0) uniform ObjectUbo {
-	bool albedo_only;
-	bool metallic_only;
-	bool roughness_only;
-	float ao;
+  vec4 color_factor;
+  vec4 emissive_factor;
+  float metallic_factor;
+  float roughness_factor;
+  float ao;
+  float _; // padding
 } oubo;
 
 layout (set = 2, binding = 0) readonly buffer Vertices {
-	VertexData data[];
+  VertexData data[];
 } vertices;
 
 layout (set = 2, binding = 1) readonly buffer Indices {
-	uint data[];
+  uint data[];
 } indices;
 
 layout (set = 3, binding = 0) uniform sampler2D tex_albedo;
-layout (set = 4, binding = 0) uniform sampler2D tex_metalic;
-layout (set = 5, binding = 0) uniform sampler2D tex_roughness;
+layout (set = 4, binding = 0) uniform sampler2D tex_metalic_roughness;
+layout (set = 5, binding = 0) uniform sampler2D tex_normal;
+layout (set = 6, binding = 0) uniform sampler2D tex_emissive;
 
 layout (push_constant) uniform constants {
-	mat4 model_mat;
-	mat4 norm_mat;
+  mat4 model_mat;
+  // https://paroj.github.io/gltut/Illumination/Tut09%20Normal%20Transformation.html
+  mat4 norm_mat;
 } push;
 
 #ifdef VERTEX_SHADER
 
 layout (location = 0) out vec3 o_norm;
-layout (location = 1) out vec3 o_pos;
-layout (location = 2) out vec2 o_uv;
+layout (location = 1) out vec3 o_tan;
+layout (location = 2) out vec3 o_bitan;
+layout (location = 3) out vec3 o_pos;
+layout (location = 4) out vec2 o_uv;
 
 // vertex shader
 void main() {
-	//const array of positions for the triangle
-	uint idx = indices.data[gl_VertexIndex];
-	VertexData vtx = vertices.data[idx];
-	vec4 world_space_pos = push.model_mat * vec4(vtx.x, vtx.y, vtx.z, 1.0f);
-
-
-	//output the position of each vertex
-	o_norm = normalize(mat3(push.norm_mat) * vec3(vtx.nx, vtx.ny, vtx.nz));
-	o_pos = world_space_pos.xyz;
-	o_uv = vec2(vtx.u, vtx.v);
-	gl_Position = gubo.proj_view * world_space_pos;
+  //const array of positions for the triangle
+  uint idx = indices.data[gl_VertexIndex];
+  VertexData vtx = vertices.data[idx];
+  vec4 world_space_pos = push.model_mat * vec4(vtx.x, vtx.y, vtx.z, 1.0f);
+  
+  
+  //output the position of each vertex
+  o_norm = vec3(vec4(vtx.nx, vtx.ny, vtx.nz, 1.0f) * push.norm_mat);
+  o_tan =  vec3(vec4(vtx.tx, vtx.ty, vtx.tz, 1.0f) * push.model_mat);
+  o_bitan = cross(o_norm, o_tan);
+  // Euclidean space
+  o_pos = world_space_pos.xyz / world_space_pos.w;
+  o_uv = vec2(vtx.u, vtx.v);
+  gl_Position = gubo.proj_view * world_space_pos;
 }
 
 #endif
 #ifdef FRAGMENT_SHADER
 
 layout (location = 0) in vec3 i_world_norm;
-layout (location = 1) in vec3 i_world_pos;
-layout (location = 2) in vec2 i_uv;
+layout (location = 1) in vec3 i_world_tan;
+layout (location = 2) in vec3 i_world_bitan;
+layout (location = 3) in vec3 i_world_pos;
+layout (location = 4) in vec2 i_uv;
 
 layout (location = 0) out vec4 outFragColor;
 
-const float PI = 3.14159265359;
+// pbr model based on: 
+// https://cdn2.unrealengine.com/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf
+// https://youtu.be/gya7x9H3mV0
+// https://media.disneyanimation.com/uploads/production/publication_asset/48/asset/s2012_pbs_disney_brdf_notes_v3.pdf
 
+// =====================================================
+// specular term
 vec3 fresnel_schlick(float cos_theta, vec3 F0) {
-	return F0 + (1.0 - F0) * pow(clamp(1.0 - cos_theta, 0.0, 1.0), 5.0);
+  return F0 + (1.0 - F0) * pow(1.0 - cos_theta, 5.0);
+} 
+
+float D_GGX(float NoH, float roughness) {
+  float alpha = roughness * roughness;
+  float alpha2 = alpha * alpha;
+  float NoH2 = NoH * NoH;
+  float b = (NoH2 * (alpha2 - 1.0) + 1.0);
+  return alpha2 / (PI * b * b);
 }
 
-float distributionGGX(vec3 N, vec3 H, float roughness) {
-	float a = roughness * roughness;
-	float a2 = a * a;
-	float NdotH = max(dot(N, H), 0.0);
-	float NdotH2 = NdotH * NdotH;
-
-	float num = a2;
-	float denom = (NdotH2 * (a2 - 1.0) + 1.0);
-	denom = PI * denom * denom;
-
-	return num / denom;
+float G1_GGX_Schlick(float NoV, float roughness) {
+  //float r = roughness; // original
+  float r = 0.5 + 0.5 * roughness; // Disney remapping
+  float k = (r * r) / 2.0;
+  float denom = NoV * (1.0 - k) + k;
+  return max(NoV, 0.001) / denom;
 }
 
-float geometry_schlickGGX(float NdotV, float roughness) {
-	float r = (roughness + 1.0);
-	float k = (r * r) / 8.0;
+float G_Smith(float NoV, float NoL, float roughness) {
+  float g1_l = G1_GGX_Schlick(NoL, roughness);
+  float g1_v = G1_GGX_Schlick(NoV, roughness);
+  return g1_l * g1_v;
+}
+// =====================================================
 
-	float num = NdotV;
-	float denom = NdotV * (1.0 - k) + k;
+vec3 microfacetBRDF(in vec3 L, in vec3 V, in vec3 N, 
+              in vec3 base_color, in float metallicness, 
+              in float fresnel_reflect, in float roughness) {
+     
+  vec3 H = normalize(V + L); // half vector
 
-	return num / denom;
+  // all required dot products
+  float NoV = clamp(dot(N, V), 0.0, 1.0);
+  float NoL = clamp(dot(N, L), 0.0, 1.0);
+  float NoH = clamp(dot(N, H), 0.0, 1.0);
+  float VoH = clamp(dot(V, H), 0.0, 1.0);     
+  
+  // F0 for dielectics in range [0.0, 0.16] 
+  // default FO is (0.16 * 0.5^2) = 0.04
+  vec3 f0 = vec3(0.16 * (fresnel_reflect * fresnel_reflect)); 
+  // in case of metals, baseColor contains F0
+  f0 = mix(f0, base_color, metallicness);
+
+  // specular microfacet (cook-torrance) BRDF
+  vec3 F = fresnel_schlick(VoH, f0);
+  float D = D_GGX(NoH, roughness);
+  float G = G_Smith(NoV, NoL, roughness);
+  vec3 spec = (F * D * G) / (4.0 * max(NoV, 0.001) * max(NoL, 0.001));
+  
+  // diffuse
+  vec3 rhoD = base_color;
+  rhoD *= vec3(1.0) - F; // if not specular, use as diffuse (optional)
+  rhoD *= (1.0 - metallicness); // no diffuse for metals
+  vec3 diff = rhoD * RECIPROCAL_PI;
+  
+  return diff + spec;
 }
 
-float geometry_smith(vec3 N, vec3 V, vec3 L, float roughness) {
-	float NdotV = max(dot(N, V), 0.0);
-	float NdotL = max(dot(N, L), 0.0);
-	float ggx2 = geometry_schlickGGX(NdotV, roughness);
-	float ggx1 = geometry_schlickGGX(NdotL, roughness);
-
-	return ggx1 * ggx2;
+// linear to sRGB approximation
+vec3 lin_to_rgb(vec3 lin) { 
+  return pow(lin, vec3(1.0 / 2.2));
 }
 
 void main() {
-	vec3 albedo = texture(tex_albedo, i_uv).rgb;
-	float metallic = texture(tex_metalic, i_uv).r;
-	float roughness = texture(tex_roughness, i_uv).r;
+  // tan space
+  vec3 norm = normalize(i_world_norm);
+  vec3 tan = normalize(i_world_tan);
+  vec3 bitan = normalize(i_world_bitan);
+  mat3 tanspace_to_world = mat3(tan, bitan, norm);
+  
+  // unpacking normal
+  vec3 N = texture(tex_normal, i_uv).rgb;
+  N = normalize(N * 2.0f - 1.0f);
+  N = tanspace_to_world * N;
+  
+  vec3 base_color = vec3(texture(tex_albedo, i_uv).rgba * oubo.color_factor);
+  vec3 emission = vec3(texture(tex_emissive, i_uv).rgba * oubo.emissive_factor);
 
-	if(oubo.albedo_only) {
-			outFragColor = vec4(albedo, 1.0f);
-			return;
-	}
+  // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_material_pbrmetallicroughness_metallicroughnesstexture
+  float metallicness = texture(tex_metalic_roughness, i_uv).b * oubo.metallic_factor;
+  float roughness = texture(tex_metalic_roughness, i_uv).g * oubo.roughness_factor;
 
-	if (oubo.metallic_only) {
-			outFragColor = vec4(metallic, metallic, metallic, 1.0f);
-			return;
-	}
+  vec3 view_dir = normalize(gubo.cam_pos - i_world_pos);
 
-	if (oubo.roughness_only) {
-			outFragColor = vec4(roughness, roughness, roughness, 1.0f);
-			return;
-	}
+  vec3 radiance = emission;
+  for(int i=0; i< gubo.num_of_lights; ++i) {
+    Light light = gubo.lights[i];
+    vec3 light_dir = normalize(light.pos - i_world_pos);
 
-
-	vec3 ws_pos = i_world_pos;
-	vec3 ws_norm = normalize(i_world_norm);
-	vec3 obj_dir = normalize(gubo.cam_pos - ws_pos);
-	vec3 F0 = vec3(0.04);
-	F0 = mix(F0, albedo, metallic);
-
-	vec3 lightPositions[4] = vec3[](vec3(0, 0, 10.0f), vec3(0, -3.0f, 15.0f), vec3(6.0f, 0, 15.0f), vec3(-3.0f, 0, 15.0f));
-
-	vec3 Lo = vec3(0.0);
-	for (int i = 0; i < gubo.num_of_lights; ++i) {
-		vec3 L = normalize(gubo.lights[i].pos - ws_pos);
-		vec3 H = normalize(obj_dir + L);
-
-		float distance = length(gubo.lights[i].pos - ws_pos);
-		float attenuation = 1.0 / (distance * distance);
-		vec3 radiance = gubo.lights[i].color.rgb * gubo.lights[i].color.a * attenuation;
-
-		float NDF = distributionGGX(ws_norm, H, roughness);
-		float G = geometry_smith(ws_norm, ws_pos, L, roughness);
-		vec3 F = fresnel_schlick(max(dot(H, ws_pos), 0.0), F0);
-
-		vec3 kS = F;
-		vec3 kD = vec3(1.0) - kS;
-		kD *= 1.0 - metallic;
-
-		vec3 numerator = NDF * G * F;
-		float denominator = 4.0 * max(dot(ws_norm, ws_pos), 0.0) * max(dot(ws_norm, L), 0.0) + 0.0001;
-		vec3 specular = numerator / denominator;
-
-		// add to outgoing radiance Lo
-		float NdotL = max(dot(ws_norm, L), 0.0);
-		Lo += (kD * albedo / PI + specular) * radiance * NdotL;
-	}
-
-	vec3 ambient = vec3(0.03) * albedo * oubo.ao;
-	vec3 color = ambient + Lo;
-
-	color = color / (color + vec3(1.0));
-	color = pow(color, vec3(1.0 / 2.2));
-
-	outFragColor = vec4(color, 1.0f);
-//	outFragColor = vec4(albedo, 1.0f);
+    // irradiance contribution from light
+    float irradiance = max(dot(light_dir, N), 0.0);
+    if(irradiance > 0.0) {
+      // avoid calculating brdf if light doesn't contribute
+      vec3 brdf = microfacetBRDF(light_dir, view_dir, N, base_color, metallicness, oubo.ao, roughness);
+      radiance += irradiance * brdf * light.color.rgb;
+    }
+  }
+  
+  outFragColor = vec4(lin_to_rgb(radiance), 1.0f);
 }
 
 #endif

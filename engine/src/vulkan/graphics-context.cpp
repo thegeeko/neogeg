@@ -183,7 +183,7 @@ namespace geg {
 
       cmd.writeTimestamp(
           vk::PipelineStageFlagBits::eTopOfPipe, m_querey_pools[m_current_image_index], 2);
-      // m_mesh_renderer->fill_commands(cmd, camera, scene, color_target, depth_target);
+      m_mesh_renderer->fill_commands(cmd, camera, scene, color_target, depth_target);
       cmd.writeTimestamp(
           vk::PipelineStageFlagBits::eBottomOfPipe, m_querey_pools[m_current_image_index], 3);
     }
@@ -254,10 +254,10 @@ namespace geg {
 
     double time_before = 0;
 
-    ImGui::Begin("Time");
-    ImGui::Text("depth delta: %f", depth_pass_delta);
-    ImGui::Text("mesh delta: %f", mesh_pass_delta);
-    ImGui::Text("imgui delta: %f", imgui_pass_delta);
+    ImGui::Begin("GPU Time");
+    ImGui::Text("depth pass: %f ms", depth_pass_delta);
+    ImGui::Text("pbr pass: %f ms", mesh_pass_delta);
+    ImGui::Text("imgui pass: %f ms", imgui_pass_delta);
     ImGui::Separator();
 
     legit::ProfilerTask tasks[3];

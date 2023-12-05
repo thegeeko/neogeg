@@ -1,6 +1,7 @@
 #include "texture.hpp"
+#include <cstdint>
+#include <vulkan/vulkan_enums.hpp>
 
-#include <utility>
 #include "stb_image.h"
 #include "vk_mem_alloc.h"
 
@@ -13,7 +14,6 @@ namespace geg::vulkan {
       uint32_t channels):
       m_name(std::move(image_name)),
       m_path(std::move(image_path)), m_format(format), m_channels(channels), m_device(device) {
-    stbi_set_flip_vertically_on_load(true);
     const uint8_t* image_data =
         stbi_load(m_path.c_str(), &m_width, &m_height, &m_file_channels, (int32_t)m_channels);
     GEG_CORE_ASSERT(image_data, "Failed reading image {} from: {}", m_name, m_path.c_str());
@@ -24,6 +24,24 @@ namespace geg::vulkan {
         .depth = 1,
     };
 
+    create_texutre(format, extent, image_data);
+    stbi_image_free((void*)image_data);
+  };
+
+  Texture::Texture(std::shared_ptr<Device> device, glm::vec<4, uint8_t> color):
+      m_name("dummy"), m_format(vk::Format::eR8G8B8A8Unorm), m_channels(4), m_device(device){
+    m_width = 1;
+    m_height = 1;
+    const uint8_t* data = &color.r;
+    const vk::Extent3D extent = {
+        .width = 1,
+        .height = 1,
+        .depth = 1,
+    };
+    create_texutre(m_format, extent, data);
+  };
+
+  void Texture::create_texutre(vk::Format format, vk::Extent3D extent, const uint8_t* image_data) {
     m_size = m_width * m_height * m_channels;
     const auto image_info = static_cast<VkImageCreateInfo>(vk::ImageCreateInfo{
         .imageType = vk::ImageType::e2D,
@@ -46,8 +64,6 @@ namespace geg::vulkan {
 
     m_device->upload_to_image(
         m_image, vk::ImageLayout::eShaderReadOnlyOptimal, m_format, extent, image_data, m_size);
-
-    stbi_image_free((void*)image_data);
 
     const vk::ImageViewCreateInfo view_info{
         .image = m_image,
@@ -100,7 +116,7 @@ namespace geg::vulkan {
                              .value();
     descriptor_set = set;
     descriptor_set_layout = layout;
-  };
+  }
 
   Texture::~Texture() {
     GEG_CORE_WARN("destroying texture: {}", m_name);

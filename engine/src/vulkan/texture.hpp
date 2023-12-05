@@ -1,6 +1,7 @@
 #pragma once
 
 #include "device.hpp"
+#include "glm/vec4.hpp"
 #include "vk_mem_alloc.h"
 #include "utils/filesystem.hpp"
 
@@ -14,6 +15,10 @@ namespace geg::vulkan {
         vk::Format format,
         uint32_t channels);
 
+    Texture(
+        std::shared_ptr<Device> device,
+        glm::vec<4, uint8_t> color);
+
     Texture(Texture&) = delete;
     Texture(Texture&& other) = delete; 
 
@@ -24,6 +29,8 @@ namespace geg::vulkan {
     std::string name() const { return m_name; }
 
   private:
+    void create_texutre(vk::Format format, vk::Extent3D extent,const uint8_t* img_data);
+
     int32_t m_width = 0;
     int32_t m_height = 0;
     int32_t m_file_channels = 0;

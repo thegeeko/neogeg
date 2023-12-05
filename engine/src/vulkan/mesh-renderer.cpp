@@ -1,5 +1,6 @@
 #include "mesh-renderer.hpp"
 #include "assets/asset-manager.hpp"
+#include "glm/fwd.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "imgui.h"
 #include "ecs/components.hpp"
@@ -106,7 +107,10 @@ namespace geg::vulkan {
       const auto& transform = objects.get<cmps::Transform>(obj);
       const auto& mesh = objects.get<cmps::Mesh>(obj);
 
-      if (!pbr_data || !mesh) continue;
+      if (!mesh) {
+        GEG_CORE_WARN("no mesh data in some mesh");
+        continue;
+      }
 
       push_data.model = transform.model_matrix();
       push_data.norm = transform.normal_matrix();
@@ -118,7 +122,8 @@ namespace geg::vulkan {
           sizeof(push_data),
           &push_data);
 
-      objec_data.color_factor = pbr_data.color_factor;
+      objec_data.color_factor = glm::vec4(pbr_data.color_factor, 1.0f);
+      objec_data.emissive_factor= glm::vec4(pbr_data.emissive_factor, 1.0f);
       objec_data.metallic_factor = pbr_data.metallic_factor;
       objec_data.roughness_factor = pbr_data.roughness_factor;
       objec_data.ao = pbr_data.AO;
@@ -126,10 +131,22 @@ namespace geg::vulkan {
       m_object_ubo.write_at_frame(&objec_data, sizeof(objec_data), 0);
 
       auto& mesh_descriptor = asset_manager.get_mesh(mesh.id).descriptor_set;
-      auto& albedo_descriptor = asset_manager.get_texture(pbr_data.albedo).descriptor_set;
-      auto& metallic_descriptor = asset_manager.get_texture(pbr_data.metallic_roughness).descriptor_set;
-      auto& normal_descriptor = asset_manager.get_texture(pbr_data.normal_map).descriptor_set;
+      auto& albedo_descriptor = (pbr_data.albedo >= 0) ?
+                                    asset_manager.get_texture(pbr_data.albedo).descriptor_set :
+                                    dummy_tex.descriptor_set;
 
+      auto& metallic_roughness_descriptor =
+          (pbr_data.metallic_roughness >= 0) ?
+              asset_manager.get_texture(pbr_data.metallic_roughness).descriptor_set :
+              dummy_tex.descriptor_set;
+
+      auto& normal_descriptor = (pbr_data.normal_map >= 0) ?
+                                    asset_manager.get_texture(pbr_data.normal_map).descriptor_set :
+                                    dummy_tex.descriptor_set;
+
+      auto& emissive_descriptor = (pbr_data.emissive_map >= 0) ?
+                                    asset_manager.get_texture(pbr_data.emissive_map).descriptor_set :
+                                    dummy_tex.descriptor_set;
       cmd.bindDescriptorSets(
           vk::PipelineBindPoint::eGraphics,
           m_pipeline_layout,
@@ -138,8 +155,9 @@ namespace geg::vulkan {
               m_object_ubo.descriptor_set,
               mesh_descriptor,
               albedo_descriptor,
-              metallic_descriptor,
+              metallic_roughness_descriptor,
               normal_descriptor,
+	      emissive_descriptor,
           },
           {
               m_object_ubo.frame_offset(0),
@@ -182,8 +200,8 @@ namespace geg::vulkan {
         .depthClampEnable = VK_FALSE,
         .rasterizerDiscardEnable = VK_FALSE,
         .polygonMode = vk::PolygonMode::eFill,
-        .cullMode = vk::CullModeFlagBits::eNone,
-        .frontFace = vk::FrontFace::eClockwise,
+        .cullMode = vk::CullModeFlagBits::eBack,
+        .frontFace = vk::FrontFace::eCounterClockwise,
         .depthBiasEnable = VK_FALSE,
         .lineWidth = 1.0f,
     };
@@ -239,10 +257,11 @@ namespace geg::vulkan {
             .build_layout()
             .value();
 
-    const std::array<vk::DescriptorSetLayout, 6> layouts = {
+    const std::array<vk::DescriptorSetLayout, 7> layouts = {
         gubo_layout,
         oubo_layout,
         geometry_layout,
+        texture_layout,
         texture_layout,
         texture_layout,
         texture_layout,

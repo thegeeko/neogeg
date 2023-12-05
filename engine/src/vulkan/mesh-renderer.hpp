@@ -2,7 +2,6 @@
 
 #include "assets/asset-manager.hpp"
 #include "ecs/scene.hpp"
-#include "glm/fwd.hpp"
 #include "shader.hpp"
 #include "assets/meshes/meshes.hpp"
 #include "uniform-buffer.hpp"
@@ -44,11 +43,12 @@ namespace geg::vulkan {
     } global_data{};
 
     struct {
-      glm::vec3 color_factor;
-      float metallic_factor = false;
-      float roughness_factor = false;
+      glm::vec4 color_factor;
+      glm::vec4 emissive_factor;
+      float metallic_factor = 0.0f;
+      float roughness_factor = 0.0f;
       float ao = 1.0f;
-      glm::vec2 padding{0};
+      float _padding;
     } objec_data{};
 
     struct {
@@ -61,9 +61,11 @@ namespace geg::vulkan {
     UniformBuffer m_global_ubo{m_device, sizeof(global_data), 1};
     UniformBuffer m_object_ubo{m_device, sizeof(objec_data), 1};
 
+    Texture dummy_tex{m_device, glm::vec<4, uint8_t>{255}};
+
     vk::Pipeline m_pipeline;
     vk::PipelineLayout m_pipeline_layout;
-    Shader m_shader = Shader(m_device, "assets/shaders/pbr.glsl", "pbr");
+    Shader m_shader{m_device, "assets/shaders/pbr.glsl", "pbr"};
   };
 
 }    // namespace geg::vulkan
