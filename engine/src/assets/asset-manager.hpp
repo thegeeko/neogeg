@@ -75,7 +75,6 @@ namespace geg {
         m_textures.push_back(texture);
       }
 
-      m_curr_tex += m_textures_to_load.size() - 1;
       m_textures_to_load.clear();
     };
 

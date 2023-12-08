@@ -48,7 +48,7 @@ namespace geg {
         pbr_c.color_factor.r = mat.pbrMetallicRoughness.baseColorFactor[0];
         pbr_c.color_factor.g = mat.pbrMetallicRoughness.baseColorFactor[1];
         pbr_c.color_factor.b = mat.pbrMetallicRoughness.baseColorFactor[2];
-	pbr_c.emissive_factor.r = mat.emissiveFactor[0];
+        pbr_c.emissive_factor.r = mat.emissiveFactor[0];
         pbr_c.emissive_factor.g = mat.emissiveFactor[1];
         pbr_c.emissive_factor.b = mat.emissiveFactor[2];
         pbr_c.metallic_factor = mat.pbrMetallicRoughness.metallicFactor;
@@ -77,11 +77,11 @@ namespace geg {
         }
 
         if (mat.emissiveTexture.index >= 0) {
-	  tinygltf::Texture emt = file.textures[mat.emissiveTexture.index];
+          tinygltf::Texture emt = file.textures[mat.emissiveTexture.index];
           tinygltf::Image em_img = file.images[emt.source];
           path.replace_filename(em_img.uri);
           pbr_c.emissive_map = enqueue_texture(path, true, 4);
-	}          
+        }
 
         Entity entt = scene->create_entity(node.name);
         entt.add_component<components::PBR>(pbr_c);
