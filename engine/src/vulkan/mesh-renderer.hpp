@@ -34,12 +34,14 @@ namespace geg::vulkan {
     };
 
     struct {
-      glm::mat4 proj = glm::mat4(1);
-      glm::mat4 view = glm::mat4(1);
-      glm::mat4 proj_view = glm::mat4(1);
-      glm::vec3 cam_pos = glm::vec3(0);
+      glm::mat4 proj;
+      glm::mat4 view;
+      glm::mat4 proj_view;
+      glm::vec3 cam_pos;
       uint32_t lights_count = 0;
       Light lights[100];
+      glm::vec4 skylight_dir;
+      glm::vec4 skylight_color;
     } global_data{};
 
     struct {

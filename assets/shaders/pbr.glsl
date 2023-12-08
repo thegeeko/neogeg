@@ -1,14 +1,14 @@
 #version 450
 
+
 #extension GL_EXT_debug_printf : enable
 
-#define assert( condition, value ) if( condition ){ \
-       debugPrintfEXT( value ); \
-     } 
-
-#define printf(value) debugPrintfEXT(value)
 #define PI 3.14159265358979323846264338327950
 #define RECIPROCAL_PI 0.3183098861837907
+#define printf(value) debugPrintfEXT(value)
+#define assert( condition, value ) if( condition ){ \
+          debugPrintfEXT( value );                    \
+        }
 
 struct VertexData {
   float x, y, z;
@@ -32,6 +32,8 @@ layout (set = 0, binding = 0) uniform GlobalUbo {
   vec3 cam_pos;
   uint num_of_lights;
   Light lights[MAX_NUM_OF_LIGHTS];
+  vec4 skylight_dir;
+  vec4 skylight_color;
 } gubo;
 
 layout (set = 1, binding = 0) uniform ObjectUbo {
@@ -191,18 +193,32 @@ void main() {
   float roughness = texture(tex_metalic_roughness, i_uv).g * oubo.roughness_factor;
 
   vec3 view_dir = normalize(gubo.cam_pos - i_world_pos);
+  vec3 skylight_dir = normalize(gubo.skylight_dir.xyz);
+  vec3 skylight_color = gubo.skylight_color.rgb;
 
   vec3 radiance = emission;
+
+  // skylight
+  float irradiance = max(dot(skylight_dir, N), 0.0);
+  if(irradiance > 0.0) {
+    // avoid calculating brdf if light doesn't contribute
+    vec3 brdf = microfacetBRDF(skylight_dir, view_dir, N, base_color, metallicness, oubo.ao, roughness);
+    radiance += irradiance * brdf * skylight_color;
+  }
+
+  // sum of all point lights
   for(int i=0; i< gubo.num_of_lights; ++i) {
     Light light = gubo.lights[i];
     vec3 light_dir = normalize(light.pos - i_world_pos);
+    float light_distance = length(light.pos - i_world_pos);
+    float attenuation = 1 / (light_distance * light_distance);
 
     // irradiance contribution from light
     float irradiance = max(dot(light_dir, N), 0.0);
     if(irradiance > 0.0) {
       // avoid calculating brdf if light doesn't contribute
       vec3 brdf = microfacetBRDF(light_dir, view_dir, N, base_color, metallicness, oubo.ao, roughness);
-      radiance += irradiance * brdf * light.color.rgb;
+      radiance += irradiance * brdf * light.color.rgb * attenuation;
     }
   }
   

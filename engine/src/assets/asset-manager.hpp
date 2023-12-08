@@ -24,13 +24,15 @@ namespace geg {
 
     void deinit() {
       for (auto mesh : m_meshs)
-	delete mesh;
+        delete mesh;
+
       m_meshs.clear();
       m_meshs_to_load.clear();
       m_curr_mesh = -1;
 
       for(auto tex: m_textures)
-	delete tex;
+        delete tex;
+
       m_textures.clear();
       m_textures_to_load.clear();
       m_curr_tex = -1;

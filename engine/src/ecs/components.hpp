@@ -70,6 +70,12 @@ namespace geg::components {
   };
 
   struct Light {
+    // w component for intesity
     glm::vec4 light_color{1.0f};
+  };
+
+  struct SkyLight {
+    glm::vec3 direction{1, -3, 0};
+    glm::vec4 color {1};
   };
 }    // namespace geg::components

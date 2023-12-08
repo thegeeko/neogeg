@@ -197,18 +197,25 @@ namespace geg {
         auto& pbr = entity.get_component<cmps::PBR>();
         const std::string albedo_name =
             fmt::format("{} - id({})", asset_manager.get_texture_name(pbr.albedo), pbr.albedo);
-        const std::string metallic_name =
+        const std::string metallic_roughness_name =
             fmt::format("{} - id({})", asset_manager.get_texture_name(pbr.metallic_roughness), pbr.metallic_roughness);
         const std::string normal_name = fmt::format(
             "{} - id({})", asset_manager.get_texture_name(pbr.normal_map), pbr.normal_map);
+        const std::string emission_name = fmt::format(
+            "{} - id({})", asset_manager.get_texture_name(pbr.emissive_map), pbr.emissive_map);
+
 
         ui::draw_text("Albedo", albedo_name.c_str(), {0.2f, 0.7f, 0.2f, 1.0f});
-
-        ui::draw_text("Metallic Roughness", metallic_name.c_str(), {0.2f, 0.7f, 0.2f, 1.0f});
-
+        ui::draw_text("Metallic Roughness", metallic_roughness_name.c_str(), {0.2f, 0.7f, 0.2f, 1.0f});
         ui::draw_text("Normal Map", normal_name.c_str(), {0.2f, 0.7f, 0.2f, 1.0f});
-
-        ui::draw_smth("Ao", [&pbr] { ImGui::SliderFloat("##AO", &pbr.AO, 0.0f, 1.0f); });
+        ui::draw_text("Emission Map", normal_name.c_str(), {0.2f, 0.7f, 0.2f, 1.0f});
+        ui::draw_smth(
+            "Albedo Factor", [&pbr] { ImGui::ColorEdit3("##af", &pbr.color_factor.r); });
+        ui::draw_smth(
+            "Emission Factor", [&pbr] { ImGui::ColorEdit3("##ef", &pbr.emissive_factor.r); });
+        ui::draw_smth("Roughness Factor", [&pbr] { ImGui::SliderFloat("##rf", &pbr.roughness_factor, 0.0f, 1.0f); });
+        ui::draw_smth("Metallic Factor", [&pbr] { ImGui::SliderFloat("##mf", &pbr.metallic_factor, 0.0f, 1.0f); });
+        ui::draw_smth("Fresnel Reflect", [&pbr] { ImGui::SliderFloat("##AO", &pbr.AO, 0.0f, 1.0f); });
         ImGui::Separator();
       }
 
@@ -225,6 +232,15 @@ namespace geg {
           ImGui::SameLine();
           ImGui::DragFloat("##light_intesity", &light_color.a, 1.0f, 0.0f);
         });
+      }
+
+      if (entity.has_component<cmps::SkyLight>()) {
+        auto& light= entity.get_component<cmps::SkyLight>();
+        auto& light_color = light.color;
+        ui::draw_vec3("Sky Light Direction", light.direction);
+        ui::draw_smth(
+            "Light color", [&light_color] { ImGui::ColorEdit3("##sky_color", &light_color.r); });
+
       }
     }
 

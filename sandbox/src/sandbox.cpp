@@ -13,17 +13,16 @@ public:
 
   void on_attach() override {
     auto& asset_manager = geg::AssetManager::get();
-    // asset_manager.load_scene(&scene, "/home/thegeeko/3d-models/gltf/2.0/DamagedHelmet/glTF/DamagedHelmet.gltf");
-    asset_manager.load_scene(&scene, "/home/thegeeko/3d-models/gltf/2.0/SciFiHelmet/glTF/SciFiHelmet.gltf");
+    asset_manager.load_scene(&scene, "/home/thegeeko/3d-models/gltf/2.0/DamagedHelmet/glTF/DamagedHelmet.gltf");
+    // asset_manager.load_scene(&scene, "/home/thegeeko/3d-models/gltf/2.0/SciFiHelmet/glTF/SciFiHelmet.gltf");
 
     light = scene.create_entity("light");
-    light2 = scene.create_entity("light2");
     light.add_component<cmps::Light>(cmps::Light{
         .light_color = {1.0f, 1.0f, 1.0f, 300.0f},
     });
-    light2.add_component<cmps::Light>(cmps::Light{
-        .light_color = {1.0f, 1.0f, 1.0f, 300.0f},
-    });
+
+    geg::Entity sky_light = scene.create_entity("sky_light");
+    sky_light.add_component<cmps::SkyLight>();
   };
 
   void on_detach() override {}
@@ -32,7 +31,6 @@ public:
 
     // light follow cam
     light.get_component<cmps::Transform>().translation = cam->position() ;
-    light2.get_component<cmps::Transform>().translation = cam->position() + glm::vec3(1);
   };
   void ui(float ts) override{};
   void on_event(geg::Event& event) override{};
@@ -40,7 +38,6 @@ public:
 private:
   geg::panels::Scene scene_hierarchy;
   geg::Entity light;
-  geg::Entity light2;
 };
 
 auto main() -> int {

@@ -69,6 +69,11 @@ namespace geg::vulkan {
             .extent = color_target.extent,
         });
 
+
+    global_data.proj = projection;
+    global_data.view = camera.view_matrix();
+    global_data.proj_view = projection * camera.view_matrix();
+    global_data.cam_pos = camera.position();
     const auto& light_view = scene->get_reg().view<cmps::Light, cmps::Transform>();
     uint32_t i = 0;
     for (auto& light : light_view) {
@@ -82,13 +87,12 @@ namespace geg::vulkan {
 
       i++;
     }
-
     global_data.lights_count = i;
-
-    global_data.proj = projection;
-    global_data.view = camera.view_matrix();
-    global_data.proj_view = projection * camera.view_matrix();
-    global_data.cam_pos = camera.position();
+    auto sky_lights = scene->get_reg().group<cmps::SkyLight>();
+    if(!sky_lights.empty()) {
+      global_data.skylight_dir = {sky_lights.get<cmps::SkyLight>(sky_lights[0]).direction, 1.0f};
+      global_data.skylight_color = sky_lights.get<cmps::SkyLight>(sky_lights[0]).color;
+    }
 
     // update the ubos
     m_global_ubo.write_at_frame(&global_data, sizeof(global_data), 0);
@@ -101,7 +105,6 @@ namespace geg::vulkan {
         {m_global_ubo.frame_offset(0)});
 
     const auto objects = scene->get_reg().group<cmps::PBR>(entt::get<cmps::Transform, cmps::Mesh>);
-
     for (auto obj : objects) {
       const auto& pbr_data = objects.get<cmps::PBR>(obj);
       const auto& transform = objects.get<cmps::Transform>(obj);
