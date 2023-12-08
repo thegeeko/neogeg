@@ -208,7 +208,7 @@ namespace geg {
         ui::draw_text("Albedo", albedo_name.c_str(), {0.2f, 0.7f, 0.2f, 1.0f});
         ui::draw_text("Metallic Roughness", metallic_roughness_name.c_str(), {0.2f, 0.7f, 0.2f, 1.0f});
         ui::draw_text("Normal Map", normal_name.c_str(), {0.2f, 0.7f, 0.2f, 1.0f});
-        ui::draw_text("Emission Map", normal_name.c_str(), {0.2f, 0.7f, 0.2f, 1.0f});
+        ui::draw_text("Emission Map", emission_name.c_str(), {0.2f, 0.7f, 0.2f, 1.0f});
         ui::draw_smth(
             "Albedo Factor", [&pbr] { ImGui::ColorEdit3("##af", &pbr.color_factor.r); });
         ui::draw_smth(
