@@ -1,9 +1,11 @@
 #include "mesh-renderer.hpp"
+#include <cstdint>
 #include "assets/asset-manager.hpp"
 #include "glm/fwd.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "imgui.h"
 #include "ecs/components.hpp"
+#include "vulkan/uniform-buffer.hpp"
 
 namespace geg::vulkan {
 
@@ -109,6 +111,7 @@ namespace geg::vulkan {
       const auto& pbr_data = objects.get<cmps::PBR>(obj);
       const auto& transform = objects.get<cmps::Transform>(obj);
       const auto& mesh = objects.get<cmps::Mesh>(obj);
+      const auto obj_id = static_cast<uint32_t>(obj);
 
       if (!mesh) {
         GEG_CORE_WARN("no mesh data in some mesh");
@@ -131,7 +134,11 @@ namespace geg::vulkan {
       objec_data.roughness_factor = pbr_data.roughness_factor;
       objec_data.ao = pbr_data.AO;
 
-      m_object_ubo.write_at_frame(&objec_data, sizeof(objec_data), 0);
+
+      if(m_objectubo_cache.find(obj_id) == m_objectubo_cache.end()){
+        m_objectubo_cache[obj_id] = new UniformBuffer(m_device, sizeof(objec_data), 1) ;
+      }
+      m_objectubo_cache[obj_id]->write_at_frame(&objec_data, sizeof(objec_data), 0);
 
       auto& mesh_descriptor = asset_manager.get_mesh(mesh.id).descriptor_set;
       auto& albedo_descriptor = (pbr_data.albedo >= 0) ?
@@ -155,15 +162,15 @@ namespace geg::vulkan {
           m_pipeline_layout,
           1,
           {
-              m_object_ubo.descriptor_set,
+              m_objectubo_cache[obj_id]->descriptor_set,
               mesh_descriptor,
               albedo_descriptor,
               metallic_roughness_descriptor,
               normal_descriptor,
-	      emissive_descriptor,
+              emissive_descriptor,
           },
           {
-              m_object_ubo.frame_offset(0),
+              m_objectubo_cache[obj_id]->frame_offset(0),
           });
 
       uint32_t indcies_count = asset_manager.get_mesh(mesh.id).indices_count();
@@ -243,7 +250,7 @@ namespace geg::vulkan {
 
     // @TODO: automate this
     auto gubo_layout = m_global_ubo.descriptor_set_layout;
-    auto oubo_layout = m_object_ubo.descriptor_set_layout;
+    auto oubo_layout = m_global_ubo.descriptor_set_layout;
     auto geometry_layout =
         m_device->build_descriptor()
             .bind_buffer_layout(

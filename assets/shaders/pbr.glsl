@@ -222,6 +222,10 @@ void main() {
     }
   }
   
+  // printf(radiance);
+  // outFragColor = vec4((N * 0.5 + 0.5), 1.0f);
+  // outFragColor = vec4(base_color, 1.0f);
+  // outFragColor = vec4(emission, 1.0f);
   outFragColor = vec4(lin_to_rgb(radiance), 1.0f);
 }
 

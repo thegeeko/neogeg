@@ -8,6 +8,8 @@ namespace geg::vulkan {
   class UniformBuffer {
   public:
     UniformBuffer(std::shared_ptr<Device> device, size_t size, uint32_t num_of_frames);
+    UniformBuffer(const UniformBuffer&) = delete;
+    UniformBuffer& operator=(const UniformBuffer&) = delete;
     ~UniformBuffer();
 
     vk::DescriptorSetLayout descriptor_set_layout;
