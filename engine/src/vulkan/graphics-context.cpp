@@ -1,14 +1,10 @@
 #include "graphics-context.hpp"
-#include <vulkan/vulkan_core.h>
-#include <memory>
-
-#include "core/logger.hpp"
 #include "core/time.hpp"
-#include "utility"
 
 #include "ProfilerTask.h"
 #include "imgui.h"
 
+#include "vulkan/env-map-preprocessing-pass.hpp"
 #include "vulkan/geg-vulkan.hpp"
 #include "vulkan/swapchain.hpp"
 #include "glm/gtc/matrix_transform.hpp"
@@ -26,6 +22,7 @@ namespace geg {
     };
 
     create_depth_resources();
+    create_env_map();
 
     m_present_semaphore = m_device->vkdevice.createSemaphore(vk::SemaphoreCreateInfo{});
     m_render_semaphore = m_device->vkdevice.createSemaphore(vk::SemaphoreCreateInfo{});
@@ -55,6 +52,7 @@ namespace geg {
       q = m_device->vkdevice.createQueryPool(info);
     }
 
+    m_env_map_pass = std::make_unique<vulkan::EnvMapPreprocessPass>(m_device);
     m_early_depth_pass = std::make_unique<vulkan::DepthPass>(m_device);
     m_mesh_renderer = std::make_unique<vulkan::MeshRenderer>(m_device, m_swapchain->format());
     m_imgui_renderer = std::make_unique<vulkan::ImguiRenderer>(
@@ -72,6 +70,51 @@ namespace geg {
 
     for (const auto& q : m_querey_pools)
       m_device->vkdevice.destroyQueryPool(q);
+  }
+
+  void VulkanContext::create_env_map() {
+    if (m_env_map.first || m_env_map.second) {
+      vmaDestroyImage(m_device->allocator, m_env_map.first, m_env_map.second);
+      m_device->vkdevice.destroyImageView(m_env_map_view);
+    }
+
+    const auto image_info = static_cast<VkImageCreateInfo>(vk::ImageCreateInfo{
+        .imageType = vk::ImageType::e2D,
+        .format = vk::Format::eR32G32B32A32Sfloat,
+        .extent = vk::Extent3D{m_swapchain->extent().width, m_swapchain->extent().height, 1},
+        .mipLevels = 6,
+        .arrayLayers = 1,
+        .samples = vk::SampleCountFlagBits::e1,
+        .tiling = vk::ImageTiling::eOptimal,
+        .usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc |
+                 vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
+        .sharingMode = vk::SharingMode::eExclusive,
+        .initialLayout = vk::ImageLayout::eUndefined,
+    });
+
+    constexpr auto alloc_info = VmaAllocationCreateInfo{
+        .flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT,
+        .usage = VMA_MEMORY_USAGE_GPU_ONLY,
+    };
+
+    VkImage img;
+    VmaAllocation alloc;
+    vmaCreateImage(m_device->allocator, &image_info, &alloc_info, &img, &alloc, nullptr);
+    m_env_map = {img, alloc};
+
+    m_env_map_view = m_device->vkdevice.createImageView({
+        .image = m_env_map.first,
+        .viewType = vk::ImageViewType::e2D,
+        .format = vk::Format::eR32G32B32A32Sfloat,
+        .subresourceRange =
+            {
+                .aspectMask = vk::ImageAspectFlagBits::eColor,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1,
+            },
+    });
   }
 
   void VulkanContext::create_depth_resources() {
@@ -162,6 +205,9 @@ namespace geg {
     cmd.begin(vk::CommandBufferBeginInfo{});
 
     cmd.resetQueryPool(m_querey_pools[m_current_image_index], 0, 6);
+    vulkan::Image env_map = {
+        .image = m_env_map.first, .view = m_env_map_view, .extent = m_current_dimensions};
+    m_env_map_pass->fill_commands(cmd, scene, env_map);
 
     vulkan::Image color_target = m_swapchain->images()[m_current_image_index];
     vulkan::Image depth_target =
@@ -236,7 +282,7 @@ namespace geg {
         6,
         sizeof(timestamps),
         timestamps,
-        2*sizeof(uint64_t),
+        2 * sizeof(uint64_t),
         VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
 
     double timestamp_p = m_device->physical_device.getProperties().limits.timestampPeriod;
@@ -276,7 +322,7 @@ namespace geg {
         .name = "mesh pass",
         .color = legit::Colors::emerald,
     };
-    ImGui::Text("mesh delta s:%f - e: %f",time_before, time_before + mesh_pass_delta);
+    ImGui::Text("mesh delta s:%f - e: %f", time_before, time_before + mesh_pass_delta);
     time_before += mesh_pass_delta;
 
     tasks[2] = {

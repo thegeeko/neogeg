@@ -11,13 +11,15 @@ namespace geg::vulkan {
     Shader(
         std::shared_ptr<Device> device,
         const fs::path& shader_path,
-        const std::string& shader_name);
+        const std::string& shader_name, bool compute = false);
     ~Shader();
 
     vk::ShaderModule vert_module;
     vk::ShaderModule frag_module;
+    vk::ShaderModule compute_module;
     vk::PipelineShaderStageCreateInfo vert_stage_info;
     vk::PipelineShaderStageCreateInfo frag_stage_info;
+    vk::PipelineShaderStageCreateInfo compute_stage_info;
 
   private:
     std::shared_ptr<Device> m_device;

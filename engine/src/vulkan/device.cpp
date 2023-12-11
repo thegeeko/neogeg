@@ -1,9 +1,4 @@
 #include "device.hpp"
-#include <vulkan/vulkan_core.h>
-#include <vulkan/vulkan_enums.hpp>
-#include <vulkan/vulkan_structs.hpp>
-#include "core/asserts.hpp"
-#include "core/logger.hpp"
 #include "vk_mem_alloc.h"
 
 PFN_vkCreateDebugUtilsMessengerEXT pfnVkCreateDebugUtilsMessengerEXT;
@@ -375,7 +370,8 @@ namespace geg::vulkan {
       vk::Format format,
       vk::Extent3D extent,
       const void *data,
-      vk::DeviceSize size) {
+      vk::DeviceSize size,
+      uint32_t mip_levels) {
     auto buffer_info = static_cast<VkBufferCreateInfo>(vk::BufferCreateInfo{
         .size = size,
         .usage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc,
@@ -404,10 +400,10 @@ namespace geg::vulkan {
 
     single_time_command([&](auto cmd) {
       transition_image_layout(
-          image, format, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, cmd);
+          image, format, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, cmd, mip_levels);
       copy_buffer_to_image(staging_buffer, image, extent, cmd);
       transition_image_layout(
-          image, format, vk::ImageLayout::eTransferDstOptimal, layout_after, cmd);
+          image, format, vk::ImageLayout::eTransferDstOptimal, layout_after, cmd, mip_levels);
     });
 
     vmaDestroyBuffer(allocator, staging_buffer, staging_allocation);
@@ -436,7 +432,11 @@ namespace geg::vulkan {
       vk::Format,
       vk::ImageLayout old_layout,
       vk::ImageLayout new_layout,
-      vk::CommandBuffer cmd) {
+      vk::CommandBuffer cmd,
+      uint32_t mip_levels,
+      uint32_t base_level) {
+    if (old_layout == new_layout) return;
+
     vk::ImageMemoryBarrier barrier{
         .oldLayout = old_layout,
         .newLayout = new_layout,
@@ -445,8 +445,8 @@ namespace geg::vulkan {
         .image = image,
         .subresourceRange{
             .aspectMask = vk::ImageAspectFlagBits::eColor,
-            .baseMipLevel = 0,
-            .levelCount = 1,
+            .baseMipLevel = base_level,
+            .levelCount = mip_levels,
             .baseArrayLayer = 0,
             .layerCount = 1,
         },
@@ -464,8 +464,24 @@ namespace geg::vulkan {
       dst_stage = vk::PipelineStageFlagBits::eTransfer;
     } else if (
         old_layout == vk::ImageLayout::eTransferDstOptimal &&
+        new_layout == vk::ImageLayout::eTransferSrcOptimal) {
+      barrier.srcAccessMask = vk::AccessFlagBits::eTransferRead;
+      barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
+
+      src_stage = vk::PipelineStageFlagBits::eTransfer;
+      dst_stage = vk::PipelineStageFlagBits::eTransfer;
+    } else if (
+        old_layout == vk::ImageLayout::eTransferDstOptimal &&
         new_layout == vk::ImageLayout::eShaderReadOnlyOptimal) {
       barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+      barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+
+      src_stage = vk::PipelineStageFlagBits::eTransfer;
+      dst_stage = vk::PipelineStageFlagBits::eFragmentShader;
+    } else if (
+        old_layout == vk::ImageLayout::eTransferSrcOptimal &&
+        new_layout == vk::ImageLayout::eShaderReadOnlyOptimal) {
+      barrier.srcAccessMask = vk::AccessFlagBits::eTransferRead;
       barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
 
       src_stage = vk::PipelineStageFlagBits::eTransfer;
@@ -485,6 +501,13 @@ namespace geg::vulkan {
 
       src_stage = vk::PipelineStageFlagBits::eTopOfPipe;
       dst_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+    } else if (
+        old_layout == vk::ImageLayout::eUndefined && new_layout == vk::ImageLayout::eGeneral) {
+      barrier.srcAccessMask = vk::AccessFlagBits::eNone;
+      barrier.dstAccessMask = vk::AccessFlagBits::eShaderWrite;
+
+      src_stage = vk::PipelineStageFlagBits::eTopOfPipe;
+      dst_stage = vk::PipelineStageFlagBits::eComputeShader;
     } else {
       GEG_CORE_ERROR("Unsupported image transition");
     }

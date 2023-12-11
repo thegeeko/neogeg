@@ -13,7 +13,7 @@ public:
 
   void on_attach() override {
     auto& asset_manager = geg::AssetManager::get();
-    asset_manager.load_scene(&scene, "/home/thegeeko/3d-models/gltf/2.0/DamagedHelmet/glTF/DamagedHelmet.gltf");
+    //asset_manager.load_scene(&scene, "/home/thegeeko/3d-models/gltf/2.0/DamagedHelmet/glTF/DamagedHelmet.gltf");
     asset_manager.load_scene(&scene, "/home/thegeeko/3d-models/gltf/2.0/SciFiHelmet/glTF/SciFiHelmet.gltf");
 
     light = scene.create_entity("light");

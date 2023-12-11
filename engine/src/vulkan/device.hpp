@@ -37,7 +37,9 @@ namespace geg::vulkan {
         vk::Format,
         vk::ImageLayout old_layout,
         vk::ImageLayout new_layout,
-        vk::CommandBuffer cmd);
+        vk::CommandBuffer cmd,
+        uint32_t mip_levels = 1,
+        uint32_t base_level = 0);
     void upload_to_buffer(vk::Buffer buffer, void *data, vk::DeviceSize size);
     void upload_to_image(
         vk::Image image,
@@ -45,7 +47,8 @@ namespace geg::vulkan {
         vk::Format format,
         vk::Extent3D extent,
         const void *data,
-        vk::DeviceSize size);
+        vk::DeviceSize size,
+        uint32_t mip_levels = 1);
     DescriptorBuilder build_descriptor() {
       return DescriptorBuilder::begin(
           m_descriptor_layout_cache.get(), m_descriptor_allocator.get());

@@ -199,12 +199,8 @@ void main() {
   vec3 radiance = emission;
 
   // skylight
-  float irradiance = max(dot(skylight_dir, N), 0.0);
-  if(irradiance > 0.0) {
-    // avoid calculating brdf if light doesn't contribute
-    vec3 brdf = microfacetBRDF(skylight_dir, view_dir, N, base_color, metallicness, oubo.ao, roughness);
-    radiance += irradiance * brdf * skylight_color;
-  }
+ vec3 brdf = microfacetBRDF(skylight_dir, view_dir, N, base_color, metallicness, oubo.ao, roughness);
+ radiance += brdf * skylight_color;
 
   // sum of all point lights
   for(int i=0; i< gubo.num_of_lights; ++i) {

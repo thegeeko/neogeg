@@ -1,6 +1,6 @@
 #include "shader.hpp"
+#include <glslang/Include/glslang_c_shader_types.h>
 
-#include <utility>
 #include "utils/filesystem.hpp"
 #include "glslang/Include/glslang_c_interface.h"
 #include "glslang/Include/Common.h"
@@ -113,7 +113,10 @@ namespace geg::vulkan {
   };
 
   Shader::Shader(
-      std::shared_ptr<Device> device, const fs::path& shader_path, const std::string& shader_name) {
+      std::shared_ptr<Device> device,
+      const fs::path& shader_path,
+      const std::string& shader_name,
+      bool compute) {
     m_shader_path = shader_path.string();
     m_shader_name = shader_name;
     m_glsl_shader_src = read_file(m_shader_path);
@@ -121,31 +124,43 @@ namespace geg::vulkan {
 
     glslang_initialize_process();
 
-    auto vert_spv = compile_shader(m_glsl_shader_src, vk::ShaderStageFlagBits::eVertex);
+    if (!compute) {
+      auto vert_spv = compile_shader(m_glsl_shader_src, vk::ShaderStageFlagBits::eVertex);
+      vert_module = m_device->vkdevice.createShaderModule({
+          .codeSize = sizeof(uint32_t) * (vert_spv.size()),
+          .pCode = vert_spv.data(),
+      });
 
-    vert_module = m_device->vkdevice.createShaderModule({
-        .codeSize = sizeof(uint32_t) * (vert_spv.size()),
-        .pCode = vert_spv.data(),
-    });
+      vert_stage_info = vk::PipelineShaderStageCreateInfo{
+          .stage = vk::ShaderStageFlagBits::eVertex,
+          .module = vert_module,
+          .pName = "main",
+      };
 
-    vert_stage_info = vk::PipelineShaderStageCreateInfo{
-        .stage = vk::ShaderStageFlagBits::eVertex,
-        .module = vert_module,
-        .pName = "main",
-    };
+      auto frag_spv = compile_shader(m_glsl_shader_src, vk::ShaderStageFlagBits::eFragment);
+      frag_module = m_device->vkdevice.createShaderModule({
+          .codeSize = sizeof(uint32_t) * frag_spv.size(),
+          .pCode = frag_spv.data(),
+      });
 
-    auto frag_spv = compile_shader(m_glsl_shader_src, vk::ShaderStageFlagBits::eFragment);
+      frag_stage_info = vk::PipelineShaderStageCreateInfo{
+          .stage = vk::ShaderStageFlagBits::eFragment,
+          .module = frag_module,
+          .pName = "main",
+      };
+    } else {
+      auto compute_spv = compile_shader(m_glsl_shader_src, vk::ShaderStageFlagBits::eCompute);
+      compute_module = m_device->vkdevice.createShaderModule({
+          .codeSize = sizeof(uint32_t) * (compute_spv.size()),
+          .pCode = compute_spv.data(),
+      });
 
-    frag_module = m_device->vkdevice.createShaderModule({
-        .codeSize = sizeof(uint32_t) * frag_spv.size(),
-        .pCode = frag_spv.data(),
-    });
-
-    frag_stage_info = vk::PipelineShaderStageCreateInfo{
-        .stage = vk::ShaderStageFlagBits::eFragment,
-        .module = frag_module,
-        .pName = "main",
-    };
+      compute_stage_info = vk::PipelineShaderStageCreateInfo{
+          .stage = vk::ShaderStageFlagBits::eCompute,
+          .module = compute_module,
+          .pName = "main",
+      };
+    }
 
     GEG_CORE_INFO("Shader {0} compiled successfully", m_shader_name);
 
@@ -167,6 +182,8 @@ namespace geg::vulkan {
     } else if (stage == vk::ShaderStageFlagBits::eFragment) {
       src.insert(13, "#define FRAGMENT_SHADER \n");
       glslang_stage = GLSLANG_STAGE_FRAGMENT;
+    } else if (stage == vk::ShaderStageFlagBits::eCompute) {
+      glslang_stage = GLSLANG_STAGE_COMPUTE;
     } else {
       GEG_CORE_ERROR("Shader stage not supported");
     }

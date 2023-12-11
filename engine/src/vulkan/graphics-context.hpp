@@ -9,6 +9,7 @@
 
 #include "vulkan/device.hpp"
 #include "vulkan/early-depth-pass.hpp"
+#include "vulkan/env-map-preprocessing-pass.hpp"
 #include "vulkan/swapchain.hpp"
 #include "mesh-renderer.hpp"
 #include "ecs/scene.hpp"
@@ -48,6 +49,7 @@ namespace geg {
 
   private:
     void create_depth_resources();
+    void create_env_map();
     void draw_debug_ui();
 
     struct {
@@ -67,8 +69,11 @@ namespace geg {
 
     std::pair<vk::Image, VmaAllocation> m_depth_image = {nullptr, nullptr};
     vk::ImageView m_depth_image_view;
+    std::pair<vk::Image, VmaAllocation> m_env_map = {nullptr, nullptr};
+    vk::ImageView m_env_map_view;
 
     std::unique_ptr<vulkan::DepthPass> m_early_depth_pass;
+    std::unique_ptr<vulkan::EnvMapPreprocessPass> m_env_map_pass;
     std::unique_ptr<vulkan::MeshRenderer> m_mesh_renderer;
     std::unique_ptr<vulkan::ImguiRenderer> m_imgui_renderer;
 

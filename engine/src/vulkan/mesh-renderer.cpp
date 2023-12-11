@@ -1,5 +1,6 @@
 #include "mesh-renderer.hpp"
 #include <cstdint>
+#include <vulkan/vulkan_enums.hpp>
 #include "assets/asset-manager.hpp"
 #include "glm/fwd.hpp"
 #include "glm/gtc/matrix_transform.hpp"
@@ -71,7 +72,6 @@ namespace geg::vulkan {
             .extent = color_target.extent,
         });
 
-
     global_data.proj = projection;
     global_data.view = camera.view_matrix();
     global_data.proj_view = projection * camera.view_matrix();
@@ -91,7 +91,7 @@ namespace geg::vulkan {
     }
     global_data.lights_count = i;
     auto sky_lights = scene->get_reg().group<cmps::SkyLight>();
-    if(!sky_lights.empty()) {
+    if (!sky_lights.empty()) {
       global_data.skylight_dir = {sky_lights.get<cmps::SkyLight>(sky_lights[0]).direction, 1.0f};
       global_data.skylight_color = sky_lights.get<cmps::SkyLight>(sky_lights[0]).color;
     }
@@ -129,14 +129,13 @@ namespace geg::vulkan {
           &push_data);
 
       objec_data.color_factor = glm::vec4(pbr_data.color_factor, 1.0f);
-      objec_data.emissive_factor= glm::vec4(pbr_data.emissive_factor, 1.0f);
+      objec_data.emissive_factor = glm::vec4(pbr_data.emissive_factor, 1.0f);
       objec_data.metallic_factor = pbr_data.metallic_factor;
       objec_data.roughness_factor = pbr_data.roughness_factor;
       objec_data.ao = pbr_data.AO;
 
-
-      if(m_objectubo_cache.find(obj_id) == m_objectubo_cache.end()){
-        m_objectubo_cache[obj_id] = new UniformBuffer(m_device, sizeof(objec_data), 1) ;
+      if (m_objectubo_cache.find(obj_id) == m_objectubo_cache.end()) {
+        m_objectubo_cache[obj_id] = new UniformBuffer(m_device, sizeof(objec_data), 1);
       }
       m_objectubo_cache[obj_id]->write_at_frame(&objec_data, sizeof(objec_data), 0);
 
@@ -154,9 +153,10 @@ namespace geg::vulkan {
                                     asset_manager.get_texture(pbr_data.normal_map).descriptor_set :
                                     dummy_tex.descriptor_set;
 
-      auto& emissive_descriptor = (pbr_data.emissive_map >= 0) ?
-                                    asset_manager.get_texture(pbr_data.emissive_map).descriptor_set :
-                                    dummy_tex.descriptor_set;
+      auto& emissive_descriptor =
+          (pbr_data.emissive_map >= 0) ?
+              asset_manager.get_texture(pbr_data.emissive_map).descriptor_set :
+              dummy_tex.descriptor_set;
       cmd.bindDescriptorSets(
           vk::PipelineBindPoint::eGraphics,
           m_pipeline_layout,
@@ -263,7 +263,7 @@ namespace geg::vulkan {
     auto texture_layout =
         m_device->build_descriptor()
             .bind_image_layout(
-                0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eAllGraphics)
+                0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eAllGraphics | vk::ShaderStageFlagBits::eCompute)
             .build_layout()
             .value();
 
@@ -292,7 +292,7 @@ namespace geg::vulkan {
     };
 
     auto result = m_device->vkdevice.createGraphicsPipeline(
-        {},
+        VK_NULL_HANDLE,
         {
             .pNext = &rendering_info,
             .stageCount = 2,
