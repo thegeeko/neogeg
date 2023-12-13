@@ -10,6 +10,7 @@
 #include "vulkan/device.hpp"
 #include "vulkan/early-depth-pass.hpp"
 #include "vulkan/env-map-preprocessing-pass.hpp"
+#include "vulkan/fullscreen-quad-pass.hpp"
 #include "vulkan/swapchain.hpp"
 #include "mesh-renderer.hpp"
 #include "ecs/scene.hpp"
@@ -76,6 +77,7 @@ namespace geg {
     std::unique_ptr<vulkan::EnvMapPreprocessPass> m_env_map_pass;
     std::unique_ptr<vulkan::MeshRenderer> m_mesh_renderer;
     std::unique_ptr<vulkan::ImguiRenderer> m_imgui_renderer;
+    std::unique_ptr<vulkan::QuadPass> m_quad_pass;
 
     vk::Semaphore m_present_semaphore;
     vk::Semaphore m_render_semaphore;

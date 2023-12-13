@@ -1,6 +1,6 @@
 #include "mesh-renderer.hpp"
-#include <cstdint>
 #include <vulkan/vulkan_enums.hpp>
+
 #include "assets/asset-manager.hpp"
 #include "glm/fwd.hpp"
 #include "glm/gtc/matrix_transform.hpp"
@@ -24,6 +24,7 @@ namespace geg::vulkan {
       const vk::CommandBuffer& cmd,
       const Camera& camera,
       Scene* scene,
+      const Image& env_map,
       const Image& color_target,
       const Image& depth_target) {
     namespace cmps = components;
@@ -33,7 +34,7 @@ namespace geg::vulkan {
     vk::RenderingAttachmentInfoKHR color_attachment_info{};
     color_attachment_info.imageView = color_target.view;
     color_attachment_info.imageLayout = vk::ImageLayout::eColorAttachmentOptimal;
-    color_attachment_info.loadOp = vk::AttachmentLoadOp::eClear;
+    color_attachment_info.loadOp = vk::AttachmentLoadOp::eLoad;
     color_attachment_info.storeOp = vk::AttachmentStoreOp::eStore;
     color_attachment_info.clearValue = vk::ClearValue{};
 
@@ -157,6 +158,34 @@ namespace geg::vulkan {
           (pbr_data.emissive_map >= 0) ?
               asset_manager.get_texture(pbr_data.emissive_map).descriptor_set :
               dummy_tex.descriptor_set;
+
+      const vk::SamplerCreateInfo sampler_info{
+          .magFilter = vk::Filter::eLinear,
+          .minFilter = vk::Filter::eLinear,
+          .mipmapMode = vk::SamplerMipmapMode::eLinear,
+          .addressModeU = vk::SamplerAddressMode::eRepeat,
+          .addressModeV = vk::SamplerAddressMode::eRepeat,
+          .borderColor = vk::BorderColor::eIntOpaqueBlack,
+      };
+
+      auto m_sampler = m_device->vkdevice.createSampler(sampler_info);
+
+      vk::DescriptorImageInfo img_info{
+          .sampler = m_sampler,
+          .imageView = env_map.view,
+          .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal,
+      };
+
+      auto [set, _] =
+          m_device->build_descriptor()
+              .bind_image(
+                  0,
+                  &img_info,
+                  vk::DescriptorType::eCombinedImageSampler,
+                  vk::ShaderStageFlagBits::eAllGraphics | vk::ShaderStageFlagBits::eCompute)
+              .build()
+              .value();
+
       cmd.bindDescriptorSets(
           vk::PipelineBindPoint::eGraphics,
           m_pipeline_layout,
@@ -168,6 +197,7 @@ namespace geg::vulkan {
               metallic_roughness_descriptor,
               normal_descriptor,
               emissive_descriptor,
+              set,
           },
           {
               m_objectubo_cache[obj_id]->frame_offset(0),
@@ -263,14 +293,17 @@ namespace geg::vulkan {
     auto texture_layout =
         m_device->build_descriptor()
             .bind_image_layout(
-                0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eAllGraphics | vk::ShaderStageFlagBits::eCompute)
+                0,
+                vk::DescriptorType::eCombinedImageSampler,
+                vk::ShaderStageFlagBits::eAllGraphics | vk::ShaderStageFlagBits::eCompute)
             .build_layout()
             .value();
 
-    const std::array<vk::DescriptorSetLayout, 7> layouts = {
+    const std::array<vk::DescriptorSetLayout, 8> layouts = {
         gubo_layout,
         oubo_layout,
         geometry_layout,
+        texture_layout,
         texture_layout,
         texture_layout,
         texture_layout,

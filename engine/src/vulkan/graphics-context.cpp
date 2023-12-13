@@ -5,6 +5,7 @@
 #include "imgui.h"
 
 #include "vulkan/env-map-preprocessing-pass.hpp"
+#include "vulkan/fullscreen-quad-pass.hpp"
 #include "vulkan/geg-vulkan.hpp"
 #include "vulkan/swapchain.hpp"
 #include "glm/gtc/matrix_transform.hpp"
@@ -55,6 +56,7 @@ namespace geg {
     m_env_map_pass = std::make_unique<vulkan::EnvMapPreprocessPass>(m_device);
     m_early_depth_pass = std::make_unique<vulkan::DepthPass>(m_device);
     m_mesh_renderer = std::make_unique<vulkan::MeshRenderer>(m_device, m_swapchain->format());
+    m_quad_pass = std::make_unique<vulkan::QuadPass>(m_device, m_swapchain->format());
     m_imgui_renderer = std::make_unique<vulkan::ImguiRenderer>(
         m_device, m_swapchain->format(), m_swapchain->image_count());
   }
@@ -81,7 +83,7 @@ namespace geg {
     const auto image_info = static_cast<VkImageCreateInfo>(vk::ImageCreateInfo{
         .imageType = vk::ImageType::e2D,
         .format = vk::Format::eR32G32B32A32Sfloat,
-        .extent = vk::Extent3D{m_swapchain->extent().width, m_swapchain->extent().height, 1},
+        .extent = vk::Extent3D{512, 288, 1},
         .mipLevels = 6,
         .arrayLayers = 1,
         .samples = vk::SampleCountFlagBits::e1,
@@ -197,16 +199,18 @@ namespace geg {
         (float)m_current_dimensions.width / (float)m_current_dimensions.height,
         0.1f,
         100.f);
+    proj[1][1] *= -1;
 
     m_mesh_renderer->projection = proj;
     m_early_depth_pass->projection = proj;
+    m_quad_pass->projection = proj;
 
     auto cmd = m_command_buffers[m_current_image_index];
     cmd.begin(vk::CommandBufferBeginInfo{});
 
     cmd.resetQueryPool(m_querey_pools[m_current_image_index], 0, 6);
     vulkan::Image env_map = {
-        .image = m_env_map.first, .view = m_env_map_view, .extent = m_current_dimensions};
+        .image = m_env_map.first, .view = m_env_map_view, .extent = {512, 288}};
     m_env_map_pass->fill_commands(cmd, scene, env_map);
 
     vulkan::Image color_target = m_swapchain->images()[m_current_image_index];
@@ -220,6 +224,8 @@ namespace geg {
         vk::ImageLayout::eColorAttachmentOptimal,
         cmd);
 
+    m_quad_pass->fill_commands(cmd, camera, m_env_map_pass->m_tex, env_map, color_target);
+
     if (m_debug_ui_settings.mesh_renderer) {
       cmd.writeTimestamp(
           vk::PipelineStageFlagBits::eTopOfPipe, m_querey_pools[m_current_image_index], 0);
@@ -229,7 +235,7 @@ namespace geg {
 
       cmd.writeTimestamp(
           vk::PipelineStageFlagBits::eTopOfPipe, m_querey_pools[m_current_image_index], 2);
-      m_mesh_renderer->fill_commands(cmd, camera, scene, color_target, depth_target);
+      m_mesh_renderer->fill_commands(cmd, camera, scene, env_map, color_target, depth_target);
       cmd.writeTimestamp(
           vk::PipelineStageFlagBits::eBottomOfPipe, m_querey_pools[m_current_image_index], 3);
     }
@@ -396,6 +402,8 @@ namespace geg {
       }
       ImGui::Checkbox("Render ImGui", &m_debug_ui_settings.imgui_renderer);
       ImGui::Checkbox("Render Geometry", &m_debug_ui_settings.mesh_renderer);
+      ImGui::Separator();
+      m_env_map_pass->render_debug_gui();
     }
     ImGui::End();
   }

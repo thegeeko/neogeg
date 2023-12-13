@@ -1,9 +1,11 @@
 #pragma once
 
+#include "debug/inspector.hpp"
+#include "imgui.h"
 #include "renderer/camera.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtx/quaternion.hpp"
-#include "imgui.h"
+#include "imgui-quat/imGuIZMOquat.h"
 
 namespace geg {
   class CameraPositioner_FirstPerson final: public CameraPositionerInterface {
@@ -29,7 +31,10 @@ namespace geg {
 
     void draw_debug_ui() {
       ImGui::Begin("camera");
-      ImGui::InputFloat3("cam pos", &m_camera_pos.x);
+      ui::draw_vec3("cam pos", m_camera_pos);
+      ImGui::gizmo3D("cam", m_camera_orientation);
+      ImGui::Checkbox("Lock cam", &m_cam_locked);
+      ui::draw_vec3("Lock at", m_lock_vec);
       ImGui::End();
     }
 
@@ -50,8 +55,10 @@ namespace geg {
     float fast_coef = 2.0f;
 
   private:
+    bool m_cam_locked = false;
     glm::vec2 m_mouse_pos = glm::vec2(0);
     glm::vec3 m_camera_pos = glm::vec3(0.0f, 10.0f, 10.0f);
+    glm::vec3 m_lock_vec = glm::vec3(0.0f, 0.0f, 0.0f);
     glm::quat m_camera_orientation = glm::quat(glm::vec3(0));
     glm::vec3 m_move_speed = glm::vec3(0.0f);
   };

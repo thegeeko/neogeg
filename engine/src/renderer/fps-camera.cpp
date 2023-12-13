@@ -3,12 +3,19 @@
 namespace geg {
   void CameraPositioner_FirstPerson::update(
       double dt, const glm::vec2& mouse_pos, bool mouse_pressed) {
-    if (mouse_pressed) {
-      const glm::vec2 delta = m_mouse_pos - mouse_pos;
-      const glm::quat deltaQuat =
-          glm::quat(glm::vec3(mouse_speed * delta.y, -mouse_speed * delta.x, 0.0f));
-      m_camera_orientation = glm::normalize(deltaQuat * m_camera_orientation);
+    if (mouse_pressed && !m_cam_locked) {
+      const glm::vec2 delta = mouse_pos - m_mouse_pos;
+
+      glm::quat yaw_quat = glm::angleAxis(glm::radians(delta.x), glm::vec3(0.0f, 1.0f, 0.0f));
+      glm::quat pitch_quat = glm::angleAxis(glm::radians(delta.y), glm::vec3(1.0f, 0.0f, 0.0f));
+      m_camera_orientation = glm::normalize(yaw_quat * pitch_quat * m_camera_orientation);
     }
+
+    if (m_cam_locked) {
+      m_camera_orientation =
+          glm::quat(glm::lookAt(m_camera_pos, m_lock_vec, glm::vec3(0.0f, 1.0f, 0.0f)));
+    }
+
     m_mouse_pos = mouse_pos;
 
     const glm::mat4 v = glm::mat4_cast(m_camera_orientation);
@@ -16,13 +23,18 @@ namespace geg {
     const glm::vec3 right = glm::vec3(v[0][0], v[1][0], v[2][0]);
     const glm::vec3 up = glm::cross(right, forward);
 
+    if (m_cam_locked) {
+      m_camera_pos += right * 2.0f * static_cast<float>(dt);
+      return;
+    }
+
     glm::vec3 accel(0.0f);
     if (movement.forward) accel += forward;
     if (movement.backward) accel -= forward;
     if (movement.left) accel -= right;
+    if (movement.up) accel -= up;
+    if (movement.down) accel += up;
     if (movement.right) accel += right;
-    if (movement.up) accel += up;
-    if (movement.down) accel -= up;
     if (movement.fast_speed) accel *= fast_coef;
 
     if (accel == glm::vec3(0)) {

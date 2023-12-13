@@ -30,7 +30,7 @@ namespace geg {
     m_graphics_context = std::make_unique<VulkanContext>(m_window);
     AssetManager::init(m_graphics_context->get_rendering_device());
     m_camera_controller =
-        CameraPositioner_FirstPerson(glm::vec3(0.f), {0.f, 0.f, -1.f}, {0.f, 1.f, 0.f});
+        CameraPositioner_FirstPerson(glm::vec3(0.f), {0.f, 0.f, 1.f}, {0.f, 1.f, 0.f});
   }
 
   void App::init_logger() {

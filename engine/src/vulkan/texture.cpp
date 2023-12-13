@@ -9,10 +9,10 @@ namespace geg::vulkan {
       fs::path image_path,
       std::string image_name,
       vk::Format format,
-      uint32_t mipmap_levels):
+      uint32_t _mipmap_levels):
       m_name(std::move(image_name)),
       m_path(std::move(image_path)), m_format(format), m_channels(4), m_device(device),
-      mipmap_levels(mipmap_levels) {
+      mipmap_levels(_mipmap_levels) {
     if (m_format != vk::Format::eR32G32B32A32Sfloat) {
       const uint8_t* image_data =
           stbi_load(m_path.c_str(), &m_width, &m_height, &m_file_channels, (int32_t)m_channels);
@@ -118,7 +118,7 @@ namespace geg::vulkan {
         .compareEnable = false,
         .compareOp = vk::CompareOp::eAlways,
         .minLod = 0.0f,
-        .maxLod = 0.0f,
+        .maxLod = static_cast<float>(mipmap_levels),
         .borderColor = vk::BorderColor::eIntOpaqueBlack,
         .unnormalizedCoordinates = false,
     };

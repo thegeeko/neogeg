@@ -57,6 +57,7 @@ layout (set = 3, binding = 0) uniform sampler2D tex_albedo;
 layout (set = 4, binding = 0) uniform sampler2D tex_metalic_roughness;
 layout (set = 5, binding = 0) uniform sampler2D tex_normal;
 layout (set = 6, binding = 0) uniform sampler2D tex_emissive;
+layout (set = 7, binding = 0) uniform sampler2D env_map;
 
 layout (push_constant) uniform constants {
   mat4 model_mat;
@@ -173,6 +174,15 @@ vec3 lin_to_rgb(vec3 lin) {
   return pow(lin, vec3(1.0 / 2.2));
 }
 
+vec2 direction_to_spherical_envmap(vec3 dir) {
+  float phi = atan(dir.x, dir.z);
+  float theta = acos(dir.y);
+  float u = 0.5 - phi / (2.0 * PI);
+  float v = 1.0 - theta / PI;
+  return vec2(u, v);
+}
+
+
 void main() {
   // tan space
   vec3 norm = normalize(i_world_norm);
@@ -198,25 +208,30 @@ void main() {
 
   vec3 radiance = emission;
 
-  // skylight
- vec3 brdf = microfacetBRDF(skylight_dir, view_dir, N, base_color, metallicness, oubo.ao, roughness);
- radiance += brdf * skylight_color;
+ // skylight
+ // direct lighting
+ // vec3 brdf = microfacetBRDF(skylight_dir, view_dir, N, base_color, metallicness, oubo.ao, roughness);
+ // radiance += brdf * skylight_color;
 
-  // sum of all point lights
-  for(int i=0; i< gubo.num_of_lights; ++i) {
-    Light light = gubo.lights[i];
-    vec3 light_dir = normalize(light.pos - i_world_pos);
-    float light_distance = length(light.pos - i_world_pos);
-    float attenuation = 1 / (light_distance * light_distance);
+ //  // sum of all point lights
+ //  for(int i=0; i< gubo.num_of_lights; ++i) {
+ //    Light light = gubo.lights[i];
+ //    vec3 light_dir = normalize(light.pos - i_world_pos);
+ //    float light_distance = length(light.pos - i_world_pos);
+ //    float attenuation = 1 / (light_distance * light_distance);
 
-    // irradiance contribution from light
-    float irradiance = max(dot(light_dir, N), 0.0);
-    if(irradiance > 0.0) {
-      // avoid calculating brdf if light doesn't contribute
-      vec3 brdf = microfacetBRDF(light_dir, view_dir, N, base_color, metallicness, oubo.ao, roughness);
-      radiance += irradiance * brdf * light.color.rgb * attenuation;
-    }
-  }
+ //    // irradiance contribution from light
+ //    float irradiance = max(dot(light_dir, N), 0.0);
+ //    if(irradiance > 0.0) {
+ //      // avoid calculating brdf if light doesn't contribute
+ //      vec3 brdf = microfacetBRDF(light_dir, view_dir, N, base_color, metallicness, oubo.ao, roughness);
+ //      radiance += irradiance * brdf * light.color.rgb * attenuation;
+ //    }
+ //  }
+
+  // IBL
+  vec2 env_uv = direction_to_spherical_envmap(N);
+  radiance += base_color * texture(env_map, env_uv).rgb;
   
   // printf(radiance);
   // outFragColor = vec4((N * 0.5 + 0.5), 1.0f);

@@ -13,7 +13,7 @@ namespace geg::vulkan {
         fs::path image_path,
         std::string image_name,
         vk::Format format,
-        uint32_t mipmap_levels);
+        uint32_t _mipmap_levels);
 
     Texture(std::shared_ptr<Device> device, glm::vec<4, uint8_t> color);
 

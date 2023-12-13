@@ -487,6 +487,14 @@ namespace geg::vulkan {
       src_stage = vk::PipelineStageFlagBits::eTransfer;
       dst_stage = vk::PipelineStageFlagBits::eFragmentShader;
     } else if (
+        old_layout == vk::ImageLayout::eGeneral &&
+        new_layout == vk::ImageLayout::eShaderReadOnlyOptimal) {
+      barrier.srcAccessMask = vk::AccessFlagBits::eShaderWrite;
+      barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+
+      src_stage = vk::PipelineStageFlagBits::eComputeShader;
+      dst_stage = vk::PipelineStageFlagBits::eFragmentShader;
+    } else if (
         old_layout == vk::ImageLayout::eColorAttachmentOptimal &&
         new_layout == vk::ImageLayout::ePresentSrcKHR) {
       barrier.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;

@@ -133,7 +133,7 @@ namespace geg {
           vert.position = glm::vec3{
               pos_buf[i * 3],
               // converting to my cam coords
-              -pos_buf[(i * 3) + 1],
+              pos_buf[(i * 3) + 1],
               pos_buf[(i * 3) + 2],
           };
 

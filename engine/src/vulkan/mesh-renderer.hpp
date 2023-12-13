@@ -20,6 +20,7 @@ namespace geg::vulkan {
         const vk::CommandBuffer& cmd,
         const Camera& camera,
         Scene* scene,
+        const Image& env_map,
         const Image& color_target,
         const Image& depth_target);
 
@@ -62,7 +63,6 @@ namespace geg::vulkan {
     } push_data{};
 
     UniformBuffer m_global_ubo{m_device, sizeof(global_data), 1};
-    //UniformBuffer m_object_ubo{m_device, sizeof(objec_data), 1};
     std::unordered_map<uint32_t, UniformBuffer*> m_objectubo_cache;
 
     Texture dummy_tex{m_device, glm::vec<4, uint8_t>{255}};
