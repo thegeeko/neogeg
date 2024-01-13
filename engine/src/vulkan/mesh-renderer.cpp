@@ -1,5 +1,4 @@
 #include "mesh-renderer.hpp"
-#include <vulkan/vulkan_enums.hpp>
 
 #include "assets/asset-manager.hpp"
 #include "glm/fwd.hpp"
@@ -24,7 +23,6 @@ namespace geg::vulkan {
       const vk::CommandBuffer& cmd,
       const Camera& camera,
       Scene* scene,
-      const Image& env_map,
       const Image& color_target,
       const Image& depth_target) {
     namespace cmps = components;
@@ -107,6 +105,10 @@ namespace geg::vulkan {
         {m_global_ubo.descriptor_set},
         {m_global_ubo.frame_offset(0)});
 
+    auto env_maps = scene->get_reg().group<cmps::EnvMap>();
+    GEG_CORE_ASSERT(!env_maps.empty(), "u need to use env map");
+    cmps::EnvMap& env_map_cmp = env_maps.get<cmps::EnvMap>(env_maps[0]);
+
     const auto objects = scene->get_reg().group<cmps::PBR>(entt::get<cmps::Transform, cmps::Mesh>);
     for (auto obj : objects) {
       const auto& pbr_data = objects.get<cmps::PBR>(obj);
@@ -159,33 +161,7 @@ namespace geg::vulkan {
               asset_manager.get_texture(pbr_data.emissive_map).descriptor_set :
               dummy_tex.descriptor_set;
 
-      const vk::SamplerCreateInfo sampler_info{
-          .magFilter = vk::Filter::eLinear,
-          .minFilter = vk::Filter::eLinear,
-          .mipmapMode = vk::SamplerMipmapMode::eLinear,
-          .addressModeU = vk::SamplerAddressMode::eRepeat,
-          .addressModeV = vk::SamplerAddressMode::eRepeat,
-          .borderColor = vk::BorderColor::eIntOpaqueBlack,
-      };
-
-      auto m_sampler = m_device->vkdevice.createSampler(sampler_info);
-
-      vk::DescriptorImageInfo img_info{
-          .sampler = m_sampler,
-          .imageView = env_map.view,
-          .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal,
-      };
-
-      auto [set, _] =
-          m_device->build_descriptor()
-              .bind_image(
-                  0,
-                  &img_info,
-                  vk::DescriptorType::eCombinedImageSampler,
-                  vk::ShaderStageFlagBits::eAllGraphics | vk::ShaderStageFlagBits::eCompute)
-              .build()
-              .value();
-
+      auto env_diffuse_descriptor = asset_manager.get_texture(env_map_cmp.env_map_diffuse).descriptor_set;
       cmd.bindDescriptorSets(
           vk::PipelineBindPoint::eGraphics,
           m_pipeline_layout,
@@ -197,7 +173,7 @@ namespace geg::vulkan {
               metallic_roughness_descriptor,
               normal_descriptor,
               emissive_descriptor,
-              set,
+              env_diffuse_descriptor,
           },
           {
               m_objectubo_cache[obj_id]->frame_offset(0),

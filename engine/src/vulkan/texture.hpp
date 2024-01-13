@@ -13,23 +13,27 @@ namespace geg::vulkan {
         fs::path image_path,
         std::string image_name,
         vk::Format format,
-        uint32_t _mipmap_levels);
+        uint32_t _mipmap_levels = 1);
 
     Texture(std::shared_ptr<Device> device, glm::vec<4, uint8_t> color);
-
+    Texture(std::shared_ptr<Device> device, uint32_t width, uint32_t height, vk::Format format, uint32_t _mipmap_levels = 1);
     Texture(Texture&) = delete;
     Texture(Texture&& other) = delete;
-
     ~Texture();
 
+    vk::DescriptorSet write_descriptor_set;
     vk::DescriptorSet descriptor_set;
     vk::DescriptorSetLayout descriptor_set_layout;
-    std::string name() const { return m_name; }
     uint32_t mipmap_levels = 1;
+    vk::Image image;
+    vk::ImageView image_view;
+
+    std::string name() const { return m_name; }
+    void transition_layout(vk::ImageLayout new_layout);
 
   private:
-    template<typename T>
-    void create_texutre(vk::Format format, vk::Extent3D extent, const T* img_data);
+    void upload_data(const void* img_data);
+    void create_texture();
     void generate_mip_levels();
 
     int32_t m_width = 0;
@@ -41,11 +45,11 @@ namespace geg::vulkan {
     fs::path m_path;
     std::string m_name;
     vk::Format m_format;
+    vk::ImageLayout m_layout = vk::ImageLayout::eUndefined;
 
     VmaAllocation m_alloc;
-    vk::Image m_image;
-    vk::ImageView m_image_view;
     vk::Sampler m_sampler;
+    std::vector<vk::ImageView> mips_views;
 
     std::shared_ptr<Device> m_device;
   };

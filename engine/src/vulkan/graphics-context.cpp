@@ -23,7 +23,6 @@ namespace geg {
     };
 
     create_depth_resources();
-    create_env_map();
 
     m_present_semaphore = m_device->vkdevice.createSemaphore(vk::SemaphoreCreateInfo{});
     m_render_semaphore = m_device->vkdevice.createSemaphore(vk::SemaphoreCreateInfo{});
@@ -72,51 +71,6 @@ namespace geg {
 
     for (const auto& q : m_querey_pools)
       m_device->vkdevice.destroyQueryPool(q);
-  }
-
-  void VulkanContext::create_env_map() {
-    if (m_env_map.first || m_env_map.second) {
-      vmaDestroyImage(m_device->allocator, m_env_map.first, m_env_map.second);
-      m_device->vkdevice.destroyImageView(m_env_map_view);
-    }
-
-    const auto image_info = static_cast<VkImageCreateInfo>(vk::ImageCreateInfo{
-        .imageType = vk::ImageType::e2D,
-        .format = vk::Format::eR32G32B32A32Sfloat,
-        .extent = vk::Extent3D{512, 288, 1},
-        .mipLevels = 6,
-        .arrayLayers = 1,
-        .samples = vk::SampleCountFlagBits::e1,
-        .tiling = vk::ImageTiling::eOptimal,
-        .usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc |
-                 vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
-        .sharingMode = vk::SharingMode::eExclusive,
-        .initialLayout = vk::ImageLayout::eUndefined,
-    });
-
-    constexpr auto alloc_info = VmaAllocationCreateInfo{
-        .flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT,
-        .usage = VMA_MEMORY_USAGE_GPU_ONLY,
-    };
-
-    VkImage img;
-    VmaAllocation alloc;
-    vmaCreateImage(m_device->allocator, &image_info, &alloc_info, &img, &alloc, nullptr);
-    m_env_map = {img, alloc};
-
-    m_env_map_view = m_device->vkdevice.createImageView({
-        .image = m_env_map.first,
-        .viewType = vk::ImageViewType::e2D,
-        .format = vk::Format::eR32G32B32A32Sfloat,
-        .subresourceRange =
-            {
-                .aspectMask = vk::ImageAspectFlagBits::eColor,
-                .baseMipLevel = 0,
-                .levelCount = 1,
-                .baseArrayLayer = 0,
-                .layerCount = 1,
-            },
-    });
   }
 
   void VulkanContext::create_depth_resources() {
@@ -209,9 +163,7 @@ namespace geg {
     cmd.begin(vk::CommandBufferBeginInfo{});
 
     cmd.resetQueryPool(m_querey_pools[m_current_image_index], 0, 6);
-    vulkan::Image env_map = {
-        .image = m_env_map.first, .view = m_env_map_view, .extent = {512, 288}};
-    m_env_map_pass->fill_commands(cmd, scene, env_map);
+    m_env_map_pass->fill_commands(cmd, scene);
 
     vulkan::Image color_target = m_swapchain->images()[m_current_image_index];
     vulkan::Image depth_target =
@@ -224,7 +176,7 @@ namespace geg {
         vk::ImageLayout::eColorAttachmentOptimal,
         cmd);
 
-    m_quad_pass->fill_commands(cmd, camera, m_env_map_pass->m_tex, env_map, color_target);
+    m_quad_pass->fill_commands(cmd, camera, scene, {}, color_target);
 
     if (m_debug_ui_settings.mesh_renderer) {
       cmd.writeTimestamp(
@@ -235,7 +187,7 @@ namespace geg {
 
       cmd.writeTimestamp(
           vk::PipelineStageFlagBits::eTopOfPipe, m_querey_pools[m_current_image_index], 2);
-      m_mesh_renderer->fill_commands(cmd, camera, scene, env_map, color_target, depth_target);
+      m_mesh_renderer->fill_commands(cmd, camera, scene, color_target, depth_target);
       cmd.writeTimestamp(
           vk::PipelineStageFlagBits::eBottomOfPipe, m_querey_pools[m_current_image_index], 3);
     }

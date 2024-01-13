@@ -1,5 +1,7 @@
 #include "env-map-preprocessing-pass.hpp"
+#include "assets/asset-manager.hpp"
 #include "imgui.h"
+#include "ecs/components.hpp"
 
 namespace geg::vulkan {
   EnvMapPreprocessPass::EnvMapPreprocessPass(const std::shared_ptr<Device>& device):
@@ -15,62 +17,46 @@ namespace geg::vulkan {
   void EnvMapPreprocessPass::render_debug_gui() {
     ImGui::DragFloat("number of samples", &m_settings.number_of_samples, 100.0f, 128, 4098);
     ImGui::DragFloat("mip level", &m_settings.mip_level, 1.0f, 0, 6);
+    ImGui::InputFloat("Diffuse map width", &m_settings.width);
+    ImGui::InputFloat("Diffuse map height", &m_settings.height);
     if (ImGui::Button("recalc importance sampling")) { m_calculated = false; };
     ImGui::Checkbox("recalc importance sampling anyway", &m_calc_anyway);
   }
 
-  void EnvMapPreprocessPass::fill_commands(
-      const vk::CommandBuffer& cmd, Scene* scene, const Image& envmap_target) {
+  void EnvMapPreprocessPass::fill_commands(const vk::CommandBuffer& cmd, Scene* scene) {
     if (!m_calc_anyway) {
       if (m_calculated) return;
       m_calculated = true;
     }
 
-    m_device->transition_image_layout(
-        envmap_target.image,
-        vk::Format::eR32G32B32A32Sfloat,
-        vk::ImageLayout::eUndefined,
-        vk::ImageLayout::eGeneral,
-        cmd,
-        6);
+    namespace cmps = components;
+    auto env_maps = scene->get_reg().group<cmps::EnvMap>();
+    GEG_CORE_ASSERT(!env_maps.empty(), "u need to use env map");
+    cmps::EnvMap& env_map_cmp = env_maps.get<cmps::EnvMap>(env_maps[0]);
+    auto& asset_manager = AssetManager::get();
+
     cmd.bindPipeline(vk::PipelineBindPoint::eCompute, m_pipeline);
 
-    m_settings.width = envmap_target.extent.width;
-    m_settings.height = envmap_target.extent.height;
     cmd.pushConstants(
         m_pipeline_layout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(m_settings), &m_settings);
 
-    vk::DescriptorImageInfo img_info{
-        .imageView = envmap_target.view,
-        .imageLayout = vk::ImageLayout::eGeneral,
-    };
-
-    auto output_descriptor =
-        m_device->build_descriptor()
-            .bind_image(
-                0, &img_info, vk::DescriptorType::eStorageImage, vk::ShaderStageFlagBits::eCompute)
-            .build()
-            .value()
-            .first;
+    auto env_map_tex = asset_manager.get_texture(env_map_cmp.env_map).descriptor_set;
+    Texture* env_map_diffuse = new Texture(m_device, m_settings.width, m_settings.height, vk::Format::eR32G32B32A32Sfloat);
+    env_map_diffuse->transition_layout(vk::ImageLayout::eGeneral);
 
     cmd.bindDescriptorSets(
         vk::PipelineBindPoint::eCompute,
         m_pipeline_layout,
         0,
         {
-            m_tex.descriptor_set,
-            output_descriptor,
+            env_map_tex,
+            env_map_diffuse->write_descriptor_set,
         },
         nullptr);
-    cmd.dispatch(envmap_target.extent.width / 32, envmap_target.extent.height / 18, 1);
+    cmd.dispatch(m_settings.width / 32, m_settings.height / 18, 1);
 
-    m_device->transition_image_layout(
-        envmap_target.image,
-        vk::Format::eR32G32B32A32Sfloat,
-        vk::ImageLayout::eGeneral,
-        vk::ImageLayout::eShaderReadOnlyOptimal,
-        cmd,
-        6);
+    env_map_diffuse->transition_layout(vk::ImageLayout::eShaderReadOnlyOptimal);
+    env_map_cmp.env_map_diffuse = asset_manager.add_texture(env_map_diffuse);
   };
 
   void EnvMapPreprocessPass::init_pipeline() {

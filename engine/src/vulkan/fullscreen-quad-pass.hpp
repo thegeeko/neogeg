@@ -4,6 +4,7 @@
 #include "shader.hpp"
 #include "renderer/camera.hpp"
 #include "texture.hpp"
+#include "ecs/scene.hpp"
 
 namespace geg::vulkan {
 
@@ -15,7 +16,7 @@ namespace geg::vulkan {
     void fill_commands(
         const vk::CommandBuffer& cmd,
         const Camera& camera,
-        const Texture& sky_map,
+        Scene* scene,
         const Image& input,
         const Image& target);
 

@@ -74,6 +74,13 @@ namespace geg::components {
     glm::vec4 light_color{1.0f};
   };
 
+  struct EnvMap {
+    TextureId env_map = -1;
+    TextureId env_map_diffuse = -1;
+    TextureId env_map_specular = -1;
+    TextureId brdf_integration = -1;
+  };
+
   struct SkyLight {
     glm::vec3 direction{1, -3, 0};
     glm::vec4 color {1};

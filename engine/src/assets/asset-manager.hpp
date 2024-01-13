@@ -30,7 +30,7 @@ namespace geg {
       m_meshs_to_load.clear();
       m_curr_mesh = -1;
 
-      for(auto tex: m_textures)
+      for (auto tex : m_textures)
         delete tex;
 
       m_textures.clear();
@@ -46,32 +46,31 @@ namespace geg {
       return ++m_curr_mesh;
     };
 
-    TextureId enqueue_texture(fs::path texture_path, bool color_data, uint32_t channels) {
+    TextureId enqueue_texture(fs::path texture_path, vk::Format format, uint32_t mip_maps = 1) {
       m_textures_to_load.push_back({
           .path = texture_path,
-          .color = color_data,
-          .channels = channels,
+          .mip_maps = mip_maps,
+          .format = format,
       });
 
       return ++m_curr_tex;
     };
 
+    TextureId add_texture(vulkan::Texture* texture) {
+      m_textures.push_back(texture);
+      return ++m_curr_tex;
+    }
+
     void load_scene(Scene* scene, fs::path);
 
     void load_textures() {
       for (auto& tex_info : m_textures_to_load) {
-        vk::Format format;
-        if (tex_info.channels == 4) {
-          format = tex_info.color ? vk::Format::eR8G8B8A8Srgb : vk::Format::eR8G8B8A8Unorm;
-        } else if (tex_info.channels == 1) {
-          GEG_CORE_ASSERT(!tex_info.color, "Unsupported Texture!");
-          format = vk::Format::eR8Unorm;
-        } else {
-          GEG_CORE_ERROR("Unspported Txture!");
-        }
-
         auto* texture = new vulkan::Texture(
-            m_device, tex_info.path, tex_info.path.filename().string(), format, tex_info.channels);
+            m_device,
+            tex_info.path,
+            tex_info.path.filename().string(),
+            tex_info.format,
+            tex_info.mip_maps);
         m_textures.push_back(texture);
       }
 
@@ -112,8 +111,8 @@ namespace geg {
 
     struct TextureInfo {
       fs::path path;
-      bool color = false;
-      uint32_t channels;
+      uint32_t mip_maps;
+      vk::Format format;
     };
 
     TextureId m_curr_tex = -1;

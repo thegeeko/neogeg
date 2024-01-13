@@ -1,9 +1,29 @@
 #include "texture.hpp"
+#include <vulkan/vulkan_enums.hpp>
 
 #include "stb_image.h"
 #include "vk_mem_alloc.h"
 
 namespace geg::vulkan {
+
+  Texture::Texture(
+      std::shared_ptr<Device> device,
+      uint32_t width,
+      uint32_t height,
+      vk::Format format,
+      uint32_t _mipmap_levels):
+      m_device(device),
+      m_name("unnamed"), m_format(format), mipmap_levels(_mipmap_levels), m_channels(4),
+      m_width(width), m_height(height) {
+    if (m_format != vk::Format::eR32G32B32A32Sfloat) {
+      m_size = m_width * m_height * m_channels * sizeof(uint8_t);
+    } else {
+      m_size = m_width * m_height * m_channels * sizeof(float);
+    }
+
+    create_texture();
+  }
+
   Texture::Texture(
       std::shared_ptr<Device> device,
       fs::path image_path,
@@ -13,34 +33,23 @@ namespace geg::vulkan {
       m_name(std::move(image_name)),
       m_path(std::move(image_path)), m_format(format), m_channels(4), m_device(device),
       mipmap_levels(_mipmap_levels) {
+    void* img_data;
     if (m_format != vk::Format::eR32G32B32A32Sfloat) {
-      const uint8_t* image_data =
+      img_data =
           stbi_load(m_path.c_str(), &m_width, &m_height, &m_file_channels, (int32_t)m_channels);
-
-      GEG_CORE_ASSERT(image_data, "Failed reading image {} from: {}", m_name, m_path.c_str());
-
-      const vk::Extent3D extent = {
-          .width = static_cast<uint32_t>(m_width),
-          .height = static_cast<uint32_t>(m_height),
-          .depth = 1,
-      };
-
-      create_texutre(format, extent, image_data);
-      stbi_image_free((void*)image_data);
+      GEG_CORE_ASSERT(img_data, "Failed reading image {} from: {}", m_name, m_path.c_str());
+      m_size = m_width * m_height * m_channels * sizeof(uint8_t);
     } else {
-      const float* image_data =
+      img_data =
           stbi_loadf(m_path.c_str(), &m_width, &m_height, &m_file_channels, (int32_t)m_channels);
-      GEG_CORE_ASSERT(image_data, "Failed reading image {} from: {}", m_name, m_path.c_str());
-
-      const vk::Extent3D extent = {
-          .width = static_cast<uint32_t>(m_width),
-          .height = static_cast<uint32_t>(m_height),
-          .depth = 1,
-      };
-
-      create_texutre(format, extent, image_data);
-      stbi_image_free((void*)image_data);
+      GEG_CORE_ASSERT(img_data, "Failed reading image {} from: {}", m_name, m_path.c_str());
+      m_size = m_width * m_height * m_channels * sizeof(float);
     }
+
+    create_texture();
+    upload_data(img_data);
+    if (mipmap_levels > 1) generate_mip_levels();
+    stbi_image_free(img_data);
   };
 
   Texture::Texture(std::shared_ptr<Device> device, glm::vec<4, uint8_t> color):
@@ -53,23 +62,49 @@ namespace geg::vulkan {
         .height = 1,
         .depth = 1,
     };
-    create_texutre(m_format, extent, data);
+
+    m_size = m_width * m_height * m_channels * sizeof(uint8_t);
+    create_texture();
+    upload_data(data);
   };
 
-  template<typename T>
-  void Texture::create_texutre(vk::Format format, vk::Extent3D extent, const T* image_data) {
-    m_size = m_width * m_height * m_channels * sizeof(T);
-    GEG_CORE_TRACE("copying image with size: {}, name: {}", m_size, m_name);
+  void Texture::upload_data(const void* img_data) {
+    const vk::Extent3D extent = {
+        .width = static_cast<uint32_t>(m_width),
+        .height = static_cast<uint32_t>(m_height),
+        .depth = 1,
+    };
+
+    vk::ImageLayout layout_after;
+    if (mipmap_levels > 1)
+      layout_after = vk::ImageLayout::eTransferDstOptimal;
+    else
+      layout_after = vk::ImageLayout::eShaderReadOnlyOptimal;
+
+    m_device->upload_to_image(image, layout_after, m_format, extent, img_data, m_size);
+    m_layout = layout_after;
+  };
+
+  void Texture::create_texture() {
+    const vk::Extent3D extent = {
+        .width = static_cast<uint32_t>(m_width),
+        .height = static_cast<uint32_t>(m_height),
+        .depth = 1,
+    };
+    vk::ImageUsageFlags usage = vk::ImageUsageFlagBits::eTransferDst |
+                                vk::ImageUsageFlagBits::eTransferSrc |
+                                vk::ImageUsageFlagBits::eSampled;
+
+    if (m_format == vk::Format::eR32G32B32A32Sfloat) usage |= vk::ImageUsageFlagBits::eStorage;
     const auto image_info = static_cast<VkImageCreateInfo>(vk::ImageCreateInfo{
         .imageType = vk::ImageType::e2D,
-        .format = format,
+        .format = m_format,
         .extent = extent,
         .mipLevels = mipmap_levels,
         .arrayLayers = 1,
         .samples = vk::SampleCountFlagBits::e1,
         .tiling = vk::ImageTiling::eOptimal,
-        .usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc |
-                 vk::ImageUsageFlagBits::eSampled,
+        .usage = usage,
         .sharingMode = vk::SharingMode::eExclusive,
         .initialLayout = vk::ImageLayout::eUndefined,
     });
@@ -78,20 +113,10 @@ namespace geg::vulkan {
 
     VkImage vk_img;
     vmaCreateImage(m_device->allocator, &image_info, &alloc_info, &vk_img, &m_alloc, nullptr);
-    m_image = vk_img;
-
-    vk::ImageLayout layout_after;
-    if (mipmap_levels > 1)
-      layout_after = vk::ImageLayout::eTransferDstOptimal;
-    else
-      layout_after = vk::ImageLayout::eShaderReadOnlyOptimal;
-
-    m_device->upload_to_image(m_image, layout_after, m_format, extent, image_data, m_size);
-
-    if (mipmap_levels > 1) generate_mip_levels();
+    image = vk_img;
 
     const vk::ImageViewCreateInfo view_info{
-        .image = m_image,
+        .image = image,
         .viewType = vk::ImageViewType::e2D,
         .format = m_format,
         .subresourceRange{
@@ -102,9 +127,24 @@ namespace geg::vulkan {
             .layerCount = 1,
         },
     };
+    image_view = m_device->vkdevice.createImageView(view_info);
 
-    m_image_view = m_device->vkdevice.createImageView(view_info);
-
+    mips_views.resize(mipmap_levels);
+    for (uint32_t i = 0; i < mipmap_levels; i++) {
+      const vk::ImageViewCreateInfo view_info{
+          .image = image,
+          .viewType = vk::ImageViewType::e2D,
+          .format = m_format,
+          .subresourceRange{
+              .aspectMask = vk::ImageAspectFlagBits::eColor,
+              .baseMipLevel = i,
+              .levelCount = 1,
+              .baseArrayLayer = 0,
+              .layerCount = 1,
+          },
+      };
+      mips_views[i] = m_device->vkdevice.createImageView(view_info);
+    }
     const vk::SamplerCreateInfo sampler_info{
         .magFilter = vk::Filter::eLinear,
         .minFilter = vk::Filter::eLinear,
@@ -127,7 +167,7 @@ namespace geg::vulkan {
 
     vk::DescriptorImageInfo desc_info{
         .sampler = m_sampler,
-        .imageView = m_image_view,
+        .imageView = image_view,
         .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal,
     };
 
@@ -151,7 +191,7 @@ namespace geg::vulkan {
 
       for (uint32_t i = 1; i < mipmap_levels; i++) {
         m_device->transition_image_layout(
-            m_image,
+            image,
             m_format,
             vk::ImageLayout::eTransferDstOptimal,
             vk::ImageLayout::eTransferSrcOptimal,
@@ -160,7 +200,7 @@ namespace geg::vulkan {
             i - 1);
 
         m_device->transition_image_layout(
-            m_image,
+            image,
             m_format,
             vk::ImageLayout::eUndefined,
             vk::ImageLayout::eTransferDstOptimal,
@@ -188,9 +228,9 @@ namespace geg::vulkan {
         };
 
         cmd.blitImage(
-            m_image,
+            image,
             vk::ImageLayout::eTransferSrcOptimal,
-            m_image,
+            image,
             vk::ImageLayout::eTransferDstOptimal,
             blit,
             vk::Filter::eLinear);
@@ -202,7 +242,7 @@ namespace geg::vulkan {
         if (mip_height < 1) mip_width = 1;
 
         m_device->transition_image_layout(
-            m_image,
+            image,
             m_format,
             vk::ImageLayout::eTransferSrcOptimal,
             vk::ImageLayout::eShaderReadOnlyOptimal,
@@ -212,7 +252,7 @@ namespace geg::vulkan {
       }
 
       m_device->transition_image_layout(
-          m_image,
+          image,
           m_format,
           vk::ImageLayout::eTransferDstOptimal,
           vk::ImageLayout::eShaderReadOnlyOptimal,
@@ -220,12 +260,51 @@ namespace geg::vulkan {
           1,
           mipmap_levels - 1);
     });
+
+    m_layout = vk::ImageLayout::eShaderReadOnlyOptimal;
   }
+
+  void Texture::transition_layout(vk::ImageLayout new_layout) {
+    vk::DescriptorImageInfo desc_info{
+        .sampler = m_sampler,
+        .imageView = image_view,
+        .imageLayout = new_layout,
+    };
+
+      auto mips_discriptor_builder = m_device->build_descriptor();
+      m_device->single_time_command([&](vk::CommandBuffer cmd) {
+        for (uint32_t i = 0; i < mipmap_levels; i++) {
+          m_device->transition_image_layout(image, m_format, m_layout, new_layout, cmd, 1, i);
+          desc_info.imageView = mips_views[i];
+          mips_discriptor_builder.bind_image(
+              i, &desc_info, vk::DescriptorType::eStorageImage, vk::ShaderStageFlagBits::eCompute);
+        }
+      });
+    if (new_layout == vk::ImageLayout::eGeneral) {
+      write_descriptor_set = mips_discriptor_builder.build().value().first;
+    }
+
+    // for the whole image
+    desc_info.imageView = image_view;
+    auto [set, layout] =
+        m_device->build_descriptor()
+            .bind_image(
+                0,
+                &desc_info,
+                vk::DescriptorType::eCombinedImageSampler,
+                vk::ShaderStageFlagBits::eAllGraphics | vk::ShaderStageFlagBits::eCompute)
+            .build()
+            .value();
+    descriptor_set = set;
+    descriptor_set_layout = layout;
+
+    m_layout = new_layout;
+  };
 
   Texture::~Texture() {
     GEG_CORE_WARN("destroying texture: {}", m_name);
-    vmaDestroyImage(m_device->allocator, m_image, m_alloc);
-    m_device->vkdevice.destroy(m_image_view);
+    vmaDestroyImage(m_device->allocator, image, m_alloc);
+    m_device->vkdevice.destroy(image_view);
     m_device->vkdevice.destroy(m_sampler);
   }
 }    // namespace geg::vulkan

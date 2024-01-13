@@ -1,4 +1,7 @@
 #include "fullscreen-quad-pass.hpp"
+#include <vulkan/vulkan_enums.hpp>
+#include "ecs/components.hpp"
+#include "assets/asset-manager.hpp"
 
 namespace geg::vulkan {
   QuadPass::QuadPass(const std::shared_ptr<Device>& device, vk::Format img_format):
@@ -24,9 +27,15 @@ namespace geg::vulkan {
   void QuadPass::fill_commands(
       const vk::CommandBuffer& cmd,
       const Camera& camera,
-      const Texture& sky_map,
+      Scene* scene,
       const Image& input,
       const Image& target) {
+    namespace cmps = components;
+    auto env_maps = scene->get_reg().group<cmps::EnvMap>();
+    GEG_CORE_ASSERT(!env_maps.empty(), "u need to use env map");
+    cmps::EnvMap env_map_cmp = env_maps.get<cmps::EnvMap>(env_maps[0]);
+    auto& asset_manager = AssetManager::get();
+
     vk::RenderingAttachmentInfoKHR color_attachment_info{};
     color_attachment_info.imageView = target.view;
     color_attachment_info.imageLayout = vk::ImageLayout::eColorAttachmentOptimal;
@@ -71,28 +80,30 @@ namespace geg::vulkan {
             .extent = target.extent,
         });
 
-    vk::DescriptorImageInfo img_info{
-        .sampler = m_sampler,
-        .imageView = input.view,
-        .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal,
-    };
+    // vk::DescriptorImageInfo img_info{
+    //     .sampler = m_sampler,
+    //     .imageView = input.view,
+    //     .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal,
+    // };
 
-    auto [set, _] = m_device->build_descriptor()
-                        .bind_image(
-                            0,
-                            &img_info,
-                            vk::DescriptorType::eCombinedImageSampler,
-                            vk::ShaderStageFlagBits::eFragment)
-                        .build()
-                        .value();
+    // auto [set, _] = m_device->build_descriptor()
+    //                  .bind_image(
+    //                      0,
+    //                      &img_info,
+    //                      vk::DescriptorType::eCombinedImageSampler,
+    //                      vk::ShaderStageFlagBits::eFragment)
+    //                  .build()
+    //                  .value();
 
+    auto env_map_tex = asset_manager.get_texture(env_map_cmp.env_map).descriptor_set;
+    auto env_map_diffuse = asset_manager.get_texture(env_map_cmp.env_map_diffuse).descriptor_set;
     cmd.bindDescriptorSets(
         vk::PipelineBindPoint::eGraphics,
         m_pipeline_layout,
         0,
         {
-            set,
-            sky_map.descriptor_set,
+            env_map_diffuse,
+            env_map_tex,
         },
         {});
 
@@ -170,7 +181,9 @@ namespace geg::vulkan {
     auto texture_layout =
         m_device->build_descriptor()
             .bind_image_layout(
-                0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment)
+                0,
+                vk::DescriptorType::eCombinedImageSampler,
+                vk::ShaderStageFlagBits::eAllGraphics | vk::ShaderStageFlagBits::eCompute)
             .build_layout()
             .value();
 

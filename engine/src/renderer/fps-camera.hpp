@@ -32,9 +32,9 @@ namespace geg {
     void draw_debug_ui() {
       ImGui::Begin("camera");
       ui::draw_vec3("cam pos", m_camera_pos);
-      ImGui::gizmo3D("cam", m_camera_orientation);
-      ImGui::Checkbox("Lock cam", &m_cam_locked);
       ui::draw_vec3("Lock at", m_lock_vec);
+      ImGui::Checkbox("Lock cam", &m_cam_locked);
+      ImGui::gizmo3D("orintation", m_camera_orientation);
       ImGui::End();
     }
 

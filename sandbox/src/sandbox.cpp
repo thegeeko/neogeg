@@ -4,6 +4,7 @@
 #include "debug/inspector.hpp"
 #include "ecs/entity.hpp"
 #include "ecs/components.hpp"
+#include "vulkan/geg-vulkan.hpp"
 
 namespace cmps = geg::components;
 /// the scene is provided by the geg::Layer class
@@ -13,16 +14,22 @@ public:
 
   void on_attach() override {
     auto& asset_manager = geg::AssetManager::get();
-    //asset_manager.load_scene(&scene, "/home/thegeeko/3d-models/gltf/2.0/DamagedHelmet/glTF/DamagedHelmet.gltf");
-    asset_manager.load_scene(&scene, "/home/thegeeko/3d-models/gltf/2.0/SciFiHelmet/glTF/SciFiHelmet.gltf");
+    // asset_manager.load_scene(&scene,
+    // "/home/thegeeko/3d-models/gltf/2.0/DamagedHelmet/glTF/DamagedHelmet.gltf");
+    asset_manager.load_scene(
+        &scene, "/home/thegeeko/3d-models/gltf/2.0/SciFiHelmet/glTF/SciFiHelmet.gltf");
 
     light = scene.create_entity("light");
     light.add_component<cmps::Light>(cmps::Light{
         .light_color = {1.0f, 1.0f, 1.0f, 300.0f},
     });
 
-    geg::Entity sky_light = scene.create_entity("sky_light");
-    sky_light.add_component<cmps::SkyLight>();
+    geg::TextureId env_texture =
+        asset_manager.enqueue_texture("assets/envmap.hdr", vk::Format::eR32G32B32A32Sfloat, 6);
+    geg::Entity env_map = scene.create_entity("env map");
+    env_map.add_component<cmps::EnvMap>(cmps::EnvMap{
+        .env_map = env_texture,
+    });
   };
 
   void on_detach() override {}
@@ -30,7 +37,7 @@ public:
     scene_hierarchy.draw_panel();
 
     // light follow cam
-    light.get_component<cmps::Transform>().translation = cam->position() ;
+    light.get_component<cmps::Transform>().translation = cam->position();
   };
   void ui(float ts) override{};
   void on_event(geg::Event& event) override{};

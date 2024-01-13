@@ -175,7 +175,7 @@ vec3 lin_to_rgb(vec3 lin) {
 }
 
 vec2 direction_to_spherical_envmap(vec3 dir) {
-  float phi = atan(dir.x, dir.z);
+  float phi = atan(dir.z, dir.x);
   float theta = acos(dir.y);
   float u = 0.5 - phi / (2.0 * PI);
   float v = 1.0 - theta / PI;
@@ -230,7 +230,7 @@ void main() {
  //  }
 
   // IBL
-  vec2 env_uv = direction_to_spherical_envmap(N);
+  vec2 env_uv = direction_to_spherical_envmap(N).ts;
   radiance += base_color * texture(env_map, env_uv).rgb;
   
   // printf(radiance);

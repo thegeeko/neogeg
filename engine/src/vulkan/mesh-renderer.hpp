@@ -20,7 +20,6 @@ namespace geg::vulkan {
         const vk::CommandBuffer& cmd,
         const Camera& camera,
         Scene* scene,
-        const Image& env_map,
         const Image& color_target,
         const Image& depth_target);
 
