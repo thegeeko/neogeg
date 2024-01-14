@@ -265,32 +265,43 @@ namespace geg::vulkan {
   }
 
   void Texture::transition_layout(vk::ImageLayout new_layout) {
-    vk::DescriptorImageInfo desc_info{
+    std::vector<vk::DescriptorImageInfo> mips_desc_infos(mipmap_levels);
+
+    auto mips_discriptor_builder = m_device->build_descriptor();
+    m_device->single_time_command([&](vk::CommandBuffer cmd) {
+      for (uint32_t i = 0; i < mipmap_levels; i++) {
+        m_device->transition_image_layout(image, m_format, m_layout, new_layout, cmd, 1, i);
+        mips_desc_infos[i] = vk::DescriptorImageInfo{
+            .sampler = m_sampler,
+            .imageView = mips_views[i],
+            .imageLayout = new_layout,
+        };
+      }
+    });
+
+    mips_discriptor_builder.bind_images(
+        0,
+        mips_desc_infos.data(),
+        mipmap_levels,
+        vk::DescriptorType::eStorageImage,
+        vk::ShaderStageFlagBits::eCompute);
+
+    if (new_layout == vk::ImageLayout::eGeneral) {
+      write_descriptor_set = mips_discriptor_builder.build().value().first;
+    }
+
+    vk::DescriptorImageInfo image_desc_info{
         .sampler = m_sampler,
         .imageView = image_view,
         .imageLayout = new_layout,
     };
 
-      auto mips_discriptor_builder = m_device->build_descriptor();
-      m_device->single_time_command([&](vk::CommandBuffer cmd) {
-        for (uint32_t i = 0; i < mipmap_levels; i++) {
-          m_device->transition_image_layout(image, m_format, m_layout, new_layout, cmd, 1, i);
-          desc_info.imageView = mips_views[i];
-          mips_discriptor_builder.bind_image(
-              i, &desc_info, vk::DescriptorType::eStorageImage, vk::ShaderStageFlagBits::eCompute);
-        }
-      });
-    if (new_layout == vk::ImageLayout::eGeneral) {
-      write_descriptor_set = mips_discriptor_builder.build().value().first;
-    }
-
     // for the whole image
-    desc_info.imageView = image_view;
     auto [set, layout] =
         m_device->build_descriptor()
             .bind_image(
                 0,
-                &desc_info,
+                &image_desc_info,
                 vk::DescriptorType::eCombinedImageSampler,
                 vk::ShaderStageFlagBits::eAllGraphics | vk::ShaderStageFlagBits::eCompute)
             .build()

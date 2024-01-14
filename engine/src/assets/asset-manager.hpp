@@ -93,7 +93,7 @@ namespace geg {
     }
 
     const vulkan::Mesh& get_mesh(MeshId id) { return *m_meshs[id]; }
-    const vulkan::Texture& get_texture(TextureId id) { return *m_textures[id]; }
+    vulkan::Texture& get_texture(TextureId id) { return *m_textures[id]; }
     const std::string get_mesh_name(MeshId id) const {
       if (id < 0) return "No mesh";
 

@@ -251,10 +251,49 @@ namespace geg::vulkan {
     return *this;
   }
 
+  DescriptorBuilder &DescriptorBuilder::bind_images(
+      uint32_t binding,
+      vk::DescriptorImageInfo *image_info,
+      vk::DeviceSize count,
+      vk::DescriptorType type,
+      vk::ShaderStageFlags stage_flags) {
+
+    vk::DescriptorSetLayoutBinding new_binding{};
+    new_binding.descriptorCount = count;
+    new_binding.descriptorType = type;
+    new_binding.stageFlags = stage_flags;
+    new_binding.binding = binding;
+
+    bindings.push_back(new_binding);
+
+    // create the descriptor write
+    vk::WriteDescriptorSet new_write{};
+    new_write.descriptorCount = count;
+    new_write.descriptorType = type;
+    new_write.pImageInfo = image_info;
+    new_write.dstBinding = binding;
+
+    writes.push_back(new_write);
+    return *this;
+  }
+
   DescriptorBuilder &DescriptorBuilder::bind_image_layout(
       uint32_t binding, vk::DescriptorType type, vk::ShaderStageFlags stage_flags) {
     vk::DescriptorSetLayoutBinding new_binding{};
     new_binding.descriptorCount = 1;
+    new_binding.descriptorType = type;
+    new_binding.stageFlags = stage_flags;
+    new_binding.binding = binding;
+
+    bindings.push_back(new_binding);
+
+    return *this;
+  }
+
+  DescriptorBuilder &DescriptorBuilder::bind_images_layout(
+      uint32_t binding, vk::DeviceSize count, vk::DescriptorType type, vk::ShaderStageFlags stage_flags) {
+    vk::DescriptorSetLayoutBinding new_binding{};
+    new_binding.descriptorCount = count;
     new_binding.descriptorType = type;
     new_binding.stageFlags = stage_flags;
     new_binding.binding = binding;
@@ -285,6 +324,7 @@ namespace geg::vulkan {
 
     return std::pair(set.value(), layout);
   }
+
   std::optional<vk::DescriptorSetLayout> DescriptorBuilder::build_layout() {
     vk::DescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.pBindings = bindings.data();

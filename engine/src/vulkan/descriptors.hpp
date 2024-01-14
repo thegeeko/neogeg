@@ -86,8 +86,21 @@ namespace geg::vulkan {
         vk::DescriptorType type,
         vk::ShaderStageFlags stageFlags);
 
+    DescriptorBuilder& bind_images(
+        uint32_t binding,
+        vk::DescriptorImageInfo* imageInfo,
+        vk::DeviceSize count,
+        vk::DescriptorType type,
+        vk::ShaderStageFlags stageFlags);
+
     DescriptorBuilder& bind_image_layout(
         uint32_t binding, vk::DescriptorType type, vk::ShaderStageFlags stageFlags);
+
+    DescriptorBuilder& bind_images_layout(
+        uint32_t binding,
+        vk::DeviceSize count,
+        vk::DescriptorType type,
+        vk::ShaderStageFlags stageFlags);
 
     std::optional<std::pair<vk::DescriptorSet, vk::DescriptorSetLayout>> build();
     std::optional<vk::DescriptorSetLayout> build_layout();

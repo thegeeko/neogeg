@@ -1,5 +1,4 @@
 #include "fullscreen-quad-pass.hpp"
-#include <vulkan/vulkan_enums.hpp>
 #include "ecs/components.hpp"
 #include "assets/asset-manager.hpp"
 
@@ -96,7 +95,7 @@ namespace geg::vulkan {
     //                  .value();
 
     auto env_map_tex = asset_manager.get_texture(env_map_cmp.env_map).descriptor_set;
-    auto env_map_diffuse = asset_manager.get_texture(env_map_cmp.env_map_diffuse).descriptor_set;
+    auto env_map_diffuse = asset_manager.get_texture(env_map_cmp.env_map_specular).descriptor_set;
     cmd.bindDescriptorSets(
         vk::PipelineBindPoint::eGraphics,
         m_pipeline_layout,

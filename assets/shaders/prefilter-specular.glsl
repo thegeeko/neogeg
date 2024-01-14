@@ -8,10 +8,9 @@
 #define PI 3.1415926535897932384626433832795
 
 layout (set = 0, binding = 0) uniform sampler2D env_map;
-layout (set = 1, binding = 0, rgba32f) uniform writeonly image2D o_diffuse;
+layout (set = 1, binding = 0, rgba32f) uniform writeonly image2D o_specular[6];
 
 layout (local_size_x = 32, local_size_y = 18, local_size_z = 1) in;
-
 
 layout (push_constant) uniform constants {
     float num_of_samples;
@@ -58,28 +57,7 @@ mat3 get_normal_frame(in vec3 normal) {
   return mat3(tangent, bitangent, normal);
 }
 
-vec3 prefilter_env_map_diffuse(in sampler2D envmap_sampler, in vec2 uv, uvec2 p) {
-  vec3 normal = spherical_envmap_to_direction(uv);
-  mat3 normal_transform = get_normal_frame(normal);
-  vec3 result = vec3(0.0);
-  uint N = uint(push.num_of_samples);
-
-  for(uint n = 0u; n < N; n++) {
-    vec3 random = rand_pcg3d(uvec3(p, n));
-    float phi = 2.0 * PI * random.x;
-    float theta = asin(sqrt(random.y));
-    vec3 pos_local = vec3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
-    vec3 pos_world = normal_transform * pos_local;
-    vec2 uv = direction_to_spherical_envmap(pos_world);
-    vec3 radiance = textureLod(envmap_sampler, uv, push.mip_level).rgb;
-    result += radiance;
-  }
-
-  result = result / float(N);
-  return result;
-}
-
-vec3 prefilter_env_map_specular(in sampler2D envmap_sampler, in vec2 uv, uvec2 p) {
+vec3 prefilter_env_map_specular(in sampler2D envmap_sampler, in vec2 uv, uvec2 p, float roughness) {
   vec3 normal = spherical_envmap_to_direction(uv);
   mat3 normalTransform = get_normal_frame(normal);
   vec3 V = normal;
@@ -91,7 +69,6 @@ vec3 prefilter_env_map_specular(in sampler2D envmap_sampler, in vec2 uv, uvec2 p
   for(uint n = 0u; n < N; n++) {
     vec3 random = rand_pcg3d(uvec3(p, n));
     float u = random.y;
-    float roughness = 0.8;
 
     float phi = 2.0 * PI * random.x;
     float alpha = roughness * roughness;
@@ -116,8 +93,12 @@ vec3 prefilter_env_map_specular(in sampler2D envmap_sampler, in vec2 uv, uvec2 p
 
 void main() {
   uvec2 i = gl_GlobalInvocationID.xy;
-  vec2 uv = vec2(float(i.x) / push.width, float(i.y) / push.height);
-
-  vec3 diffuse_col = prefilter_env_map_diffuse(env_map, uv.xy, i);
-  imageStore(o_diffuse, ivec2(i), vec4(diffuse_col, 1.0f));
+  for(uint j = 1; j <= 6; j++) { 
+    vec2 uv = vec2(float(i.x) / (push.width / j), float(i.y) / (push.height / j));
+    printf("j",  j);
+    printf("w", (push.width / j));
+    printf("h", (push.height / j));
+    vec3 specular_col = prefilter_env_map_specular(env_map, uv, i, (j - 1) * 0.2);
+    imageStore(o_specular[j - 1], ivec2(i), vec4(specular_col, 1.0f));
+  }
 }
