@@ -93,12 +93,11 @@ vec3 prefilter_env_map_specular(in sampler2D envmap_sampler, in vec2 uv, uvec2 p
 
 void main() {
   uvec2 i = gl_GlobalInvocationID.xy;
-  for(uint j = 1; j <= 6; j++) { 
-    vec2 uv = vec2(float(i.x) / (push.width / j), float(i.y) / (push.height / j));
-    printf("j",  j);
-    printf("w", (push.width / j));
-    printf("h", (push.height / j));
-    vec3 specular_col = prefilter_env_map_specular(env_map, uv, i, (j - 1) * 0.2);
-    imageStore(o_specular[j - 1], ivec2(i), vec4(specular_col, 1.0f));
+  for(uint j = 0; j < 6; j++) { 
+    float width = push.width / (1 << j);
+    float height = push.height / (1 << j);
+    vec2 uv = vec2(float(i.x) / width, float(i.y) / height);
+    vec3 specular_col = prefilter_env_map_specular(env_map, uv, i, j * 0.2);
+    imageStore(o_specular[j], ivec2(i), vec4(specular_col, 1.0f));
   }
 }
