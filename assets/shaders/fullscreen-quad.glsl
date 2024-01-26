@@ -14,7 +14,6 @@ void main() {
     o_uv = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);
     gl_Position = vec4(o_uv * 2.0f + -1.0f, 0.0f, 1.0f);
     o_view_dir = mat3(push.inv_view) * (push.inv_proj * gl_Position).xyz;
-    // o_view_dir.y =  -o_view_dir.y;
 }
 
 
@@ -32,7 +31,7 @@ vec2 direction_to_spherical_envmap(vec3 dir) {
   float theta = acos(dir.y);
   float u = 0.5 - phi / (2.0 * PI);
   float v = 1.0 - theta / PI;
-  return vec2(u, v);
+  return vec2(u, -v);
 }
 
 vec3 ACESFilm(vec3 color) {
@@ -49,10 +48,10 @@ vec3 lin_to_rgb(vec3 lin) {
 }
 
 void main() {
-    //vec3 color = textureLod(tex_input, direction_to_spherical_envmap(i_view_dir).ts, 0).rgb;
-    //color = ACESFilm(color);
-    //color = lin_to_rgb(color);
-    vec3 color = textureLod(tex_input, i_uv.ts, 0).rgb;
+    // vec3 color = textureLod(tex_input, direction_to_spherical_envmap(i_view_dir), 0).rgb;
+    // color = ACESFilm(color);
+    // color = lin_to_rgb(color);
+    vec3 color = textureLod(tex_input, i_uv, 0).rgb;
     o_color = vec4(color, 1.0f);
 }
 #endif

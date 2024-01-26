@@ -57,7 +57,11 @@ layout (set = 3, binding = 0) uniform sampler2D tex_albedo;
 layout (set = 4, binding = 0) uniform sampler2D tex_metalic_roughness;
 layout (set = 5, binding = 0) uniform sampler2D tex_normal;
 layout (set = 6, binding = 0) uniform sampler2D tex_emissive;
-layout (set = 7, binding = 0) uniform sampler2D env_map;
+
+layout (set = 7, binding = 0) uniform sampler2D tex_dprefilter;
+layout (set = 8, binding = 0) uniform sampler2D tex_sprefilter;
+layout (set = 9, binding = 0) uniform sampler2D tex_BRDFlut;
+
 
 layout (push_constant) uniform constants {
   mat4 model_mat;
@@ -179,7 +183,26 @@ vec2 direction_to_spherical_envmap(vec3 dir) {
   float theta = acos(dir.y);
   float u = 0.5 - phi / (2.0 * PI);
   float v = 1.0 - theta / PI;
-  return vec2(u, v);
+  return vec2(u, -v);
+}
+
+vec3 specularIBL(vec3 F0, float roughness, vec3 N, vec3 V) {
+  float NoV = clamp(dot(N, V), 0.0, 1.0);
+  vec3 R = reflect(-V, N);
+  vec2 uv = direction_to_spherical_envmap(R);
+  vec3 T1 = textureLod(tex_sprefilter, uv, roughness * 6.0).rgb;
+  vec4 brdfIntegration = texture(tex_BRDFlut, vec2(NoV, roughness));
+  vec3 T2 = (F0 * brdfIntegration.x + brdfIntegration.y);
+  return T1 * T2;
+}
+
+vec3 ACESFilm(vec3 color) {
+    float a = 2.51f;
+    float b = 0.03f;
+    float c = 2.43f;
+    float d = 0.59f;
+    float e = 0.14f;
+    return ( color *(a*color+b))/( color *(c*color+d)+e);
 }
 
 
@@ -230,13 +253,24 @@ void main() {
  //  }
 
   // IBL
-  vec2 env_uv = direction_to_spherical_envmap(N).ts;
-  radiance += base_color * texture(env_map, env_uv).rgb;
+  vec2 env_uv = direction_to_spherical_envmap(N);
+  vec3 rhoD = (1.0 - metallicness) * base_color;
+
+  vec3 F0 = vec3(0.16 * oubo.ao * oubo.ao);
+  F0 = mix(F0, base_color, metallicness);
+  // rhoD *= vec3(1.0) - F0; 
+
+  // diffuse
+  radiance += rhoD * texture(tex_dprefilter, env_uv).rgb;
+  // specular
+  roughness = min(roughness, 0.998);
+  radiance += specularIBL(F0, roughness, N, view_dir);
   
   // printf(radiance);
   // outFragColor = vec4((N * 0.5 + 0.5), 1.0f);
   // outFragColor = vec4(base_color, 1.0f);
   // outFragColor = vec4(emission, 1.0f);
+  radiance = ACESFilm(radiance);
   outFragColor = vec4(lin_to_rgb(radiance), 1.0f);
 }
 

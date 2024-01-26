@@ -162,6 +162,9 @@ namespace geg::vulkan {
               dummy_tex.descriptor_set;
 
       auto env_diffuse_descriptor = asset_manager.get_texture(env_map_cmp.env_map_diffuse).descriptor_set;
+      auto env_specular_descriptor = asset_manager.get_texture(env_map_cmp.env_map_specular).descriptor_set;
+      auto env_brdflut_descriptor = asset_manager.get_texture(env_map_cmp.brdf_integration).descriptor_set;
+
       cmd.bindDescriptorSets(
           vk::PipelineBindPoint::eGraphics,
           m_pipeline_layout,
@@ -174,6 +177,8 @@ namespace geg::vulkan {
               normal_descriptor,
               emissive_descriptor,
               env_diffuse_descriptor,
+              env_specular_descriptor,
+              env_brdflut_descriptor,
           },
           {
               m_objectubo_cache[obj_id]->frame_offset(0),
@@ -275,10 +280,12 @@ namespace geg::vulkan {
             .build_layout()
             .value();
 
-    const std::array<vk::DescriptorSetLayout, 8> layouts = {
+    const std::array<vk::DescriptorSetLayout, 10> layouts = {
         gubo_layout,
         oubo_layout,
         geometry_layout,
+        texture_layout,
+        texture_layout,
         texture_layout,
         texture_layout,
         texture_layout,

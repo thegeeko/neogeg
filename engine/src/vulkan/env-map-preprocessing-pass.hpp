@@ -3,7 +3,7 @@
 #include "device.hpp"
 #include "shader.hpp"
 #include "ecs/scene.hpp"
-#include "vulkan/texture.hpp"
+#include "texture.hpp"
 
 namespace geg::vulkan {
   class EnvMapPreprocessPass {
@@ -19,6 +19,7 @@ namespace geg::vulkan {
   private:
     Shader m_diffuse_shader{m_device, "assets/shaders/prefilter-diffuse.glsl", "prefilter-diffuse", true};
     Shader m_specular_shader{m_device, "assets/shaders/prefilter-specular.glsl", "prefilter-specular", true};
+    Shader m_brdf_shader{m_device, "assets/shaders/brdf-integration.glsl", "brdf-integration", true};
 
     bool m_calculated = false;
     bool m_calc_anyway = false;
@@ -32,6 +33,7 @@ namespace geg::vulkan {
 
     vk::Pipeline m_diffuse_pipeline;
     vk::Pipeline m_specular_pipeline;
+    vk::Pipeline m_brdf_pipeline;
     vk::PipelineLayout m_pipeline_layout;
 
     void init_pipeline();

@@ -45,43 +45,45 @@ namespace geg {
         i++;
         components::PBR pbr_c;
 
-        tinygltf::Material mat = file.materials[p.material];
-        pbr_c.color_factor.r = mat.pbrMetallicRoughness.baseColorFactor[0];
-        pbr_c.color_factor.g = mat.pbrMetallicRoughness.baseColorFactor[1];
-        pbr_c.color_factor.b = mat.pbrMetallicRoughness.baseColorFactor[2];
-        pbr_c.emissive_factor.r = mat.emissiveFactor[0];
-        pbr_c.emissive_factor.g = mat.emissiveFactor[1];
-        pbr_c.emissive_factor.b = mat.emissiveFactor[2];
-        pbr_c.metallic_factor = mat.pbrMetallicRoughness.metallicFactor;
-        pbr_c.roughness_factor = mat.pbrMetallicRoughness.roughnessFactor;
+        if (p.material >= 0) {
+          tinygltf::Material mat = file.materials[p.material];
+          pbr_c.color_factor.r = mat.pbrMetallicRoughness.baseColorFactor[0];
+          pbr_c.color_factor.g = mat.pbrMetallicRoughness.baseColorFactor[1];
+          pbr_c.color_factor.b = mat.pbrMetallicRoughness.baseColorFactor[2];
+          pbr_c.emissive_factor.r = mat.emissiveFactor[0];
+          pbr_c.emissive_factor.g = mat.emissiveFactor[1];
+          pbr_c.emissive_factor.b = mat.emissiveFactor[2];
+          pbr_c.metallic_factor = mat.pbrMetallicRoughness.metallicFactor;
+          pbr_c.roughness_factor = mat.pbrMetallicRoughness.roughnessFactor;
 
-        if (mat.pbrMetallicRoughness.metallicRoughnessTexture.index >= 0) {
-          tinygltf::Texture mt =
-              file.textures[mat.pbrMetallicRoughness.metallicRoughnessTexture.index];
-          tinygltf::Image mr_img = file.images[mt.source];
-          path.replace_filename(mr_img.uri);
-          pbr_c.metallic_roughness = enqueue_texture(path, vk::Format::eR8G8B8A8Unorm);
-        }
+          if (mat.pbrMetallicRoughness.metallicRoughnessTexture.index >= 0) {
+            tinygltf::Texture mt =
+                file.textures[mat.pbrMetallicRoughness.metallicRoughnessTexture.index];
+            tinygltf::Image mr_img = file.images[mt.source];
+            path.replace_filename(mr_img.uri);
+            pbr_c.metallic_roughness = enqueue_texture(path, vk::Format::eR8G8B8A8Unorm);
+          }
 
-        if (mat.pbrMetallicRoughness.baseColorTexture.index >= 0) {
-          tinygltf::Texture bct = file.textures[mat.pbrMetallicRoughness.baseColorTexture.index];
-          tinygltf::Image bc_img = file.images[bct.source];
-          path.replace_filename(bc_img.uri);
-          pbr_c.albedo = enqueue_texture(path, vk::Format::eR8G8B8A8Srgb);
-        }
+          if (mat.pbrMetallicRoughness.baseColorTexture.index >= 0) {
+            tinygltf::Texture bct = file.textures[mat.pbrMetallicRoughness.baseColorTexture.index];
+            tinygltf::Image bc_img = file.images[bct.source];
+            path.replace_filename(bc_img.uri);
+            pbr_c.albedo = enqueue_texture(path, vk::Format::eR8G8B8A8Srgb);
+          }
 
-        if (mat.normalTexture.index >= 0) {
-          tinygltf::Texture nmt = file.textures[mat.normalTexture.index];
-          tinygltf::Image nm_img = file.images[nmt.source];
-          path.replace_filename(nm_img.uri);
-          pbr_c.normal_map = enqueue_texture(path, vk::Format::eR8G8B8A8Unorm);
-        }
+          if (mat.normalTexture.index >= 0) {
+            tinygltf::Texture nmt = file.textures[mat.normalTexture.index];
+            tinygltf::Image nm_img = file.images[nmt.source];
+            path.replace_filename(nm_img.uri);
+            pbr_c.normal_map = enqueue_texture(path, vk::Format::eR8G8B8A8Unorm);
+          }
 
-        if (mat.emissiveTexture.index >= 0) {
-          tinygltf::Texture emt = file.textures[mat.emissiveTexture.index];
-          tinygltf::Image em_img = file.images[emt.source];
-          path.replace_filename(em_img.uri);
-          pbr_c.emissive_map = enqueue_texture(path, vk::Format::eR8G8B8A8Srgb);
+          if (mat.emissiveTexture.index >= 0) {
+            tinygltf::Texture emt = file.textures[mat.emissiveTexture.index];
+            tinygltf::Image em_img = file.images[emt.source];
+            path.replace_filename(em_img.uri);
+            pbr_c.emissive_map = enqueue_texture(path, vk::Format::eR8G8B8A8Srgb);
+          }
         }
 
         Entity entt = scene->create_entity(node.name);

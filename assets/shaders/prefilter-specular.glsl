@@ -97,7 +97,7 @@ void main() {
     float width = push.width / (1 << j);
     float height = push.height / (1 << j);
     vec2 uv = vec2(float(i.x) / width, float(i.y) / height);
-    vec3 specular_col = prefilter_env_map_specular(env_map, uv, i, j * 0.2);
+    vec3 specular_col = prefilter_env_map_specular(env_map, uv.yx, i, j * 0.2);
     imageStore(o_specular[j], ivec2(i), vec4(specular_col, 1.0f));
   }
 }

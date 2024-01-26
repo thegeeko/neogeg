@@ -83,6 +83,6 @@ void main() {
   uvec2 i = gl_GlobalInvocationID.xy;
   vec2 uv = vec2(float(i.x) / push.width, float(i.y) / push.height);
 
-  vec3 diffuse_col = prefilter_env_map_diffuse(env_map, uv.xy, i);
+  vec3 diffuse_col = prefilter_env_map_diffuse(env_map, uv.yx, i);
   imageStore(o_diffuse, ivec2(i), vec4(diffuse_col, 1.0f));
 }

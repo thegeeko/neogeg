@@ -80,13 +80,37 @@ namespace geg::vulkan {
         0,
         {
             env_map_tex,
-            env_map_specular->write_descriptor_set
+            env_map_specular->write_descriptor_set,
         },
         nullptr);
     cmd.dispatch(1280 / 32, 720 / 18, 1);
 
-    env_map_diffuse->transition_layout(vk::ImageLayout::eShaderReadOnlyOptimal);
-    env_map_specular->transition_layout(vk::ImageLayout::eShaderReadOnlyOptimal);
+    GEG_CORE_INFO("integrating brdf");
+    Texture* brdf_integration_map = &asset_manager.get_texture(env_map_cmp.brdf_integration);
+    if (env_map_cmp.brdf_integration < 0) {
+      brdf_integration_map = new Texture(m_device, 512, 512, vk::Format::eR32G32B32A32Sfloat);
+      env_map_cmp.brdf_integration = asset_manager.add_texture(brdf_integration_map);
+    }
+    brdf_integration_map->transition_layout(vk::ImageLayout::eGeneral);
+    m_settings.width = 512;
+    m_settings.height = 512;
+    cmd.bindPipeline(vk::PipelineBindPoint::eCompute, m_brdf_pipeline);
+    cmd.pushConstants(
+        m_pipeline_layout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(m_settings), &m_settings);
+    cmd.bindDescriptorSets(
+        vk::PipelineBindPoint::eCompute,
+        m_pipeline_layout,
+        0,
+        {
+            env_map_tex,
+            brdf_integration_map->write_descriptor_set,
+        },
+        nullptr);
+    cmd.dispatch(512 / 32, 512 / 32, 1);
+
+     env_map_diffuse->transition_layout(vk::ImageLayout::eShaderReadOnlyOptimal);
+    // env_map_specular->transition_layout(vk::ImageLayout::eShaderReadOnlyOptimal);
+    brdf_integration_map->transition_layout(vk::ImageLayout::eShaderReadOnlyOptimal);
   };
 
   void EnvMapPreprocessPass::init_pipeline() {
@@ -136,6 +160,11 @@ namespace geg::vulkan {
         .layout = m_pipeline_layout,
     };
 
+    vk::ComputePipelineCreateInfo brdf_pipeline_info{
+        .stage = m_brdf_shader.compute_stage_info,
+        .layout = m_pipeline_layout,
+    };
+
     auto res = m_device->vkdevice.createComputePipeline(VK_NULL_HANDLE, diffuse_pipeline_info);
     GEG_CORE_ASSERT(res.result == vk::Result::eSuccess, "Failed to create diffuse pipeline!");
     m_diffuse_pipeline = res.value;
@@ -143,5 +172,10 @@ namespace geg::vulkan {
     res = m_device->vkdevice.createComputePipeline(VK_NULL_HANDLE, specular_pipeline_info);
     GEG_CORE_ASSERT(res.result == vk::Result::eSuccess, "Failed to create specular pipeline!");
     m_specular_pipeline = res.value;
+
+    res = m_device->vkdevice.createComputePipeline(VK_NULL_HANDLE, brdf_pipeline_info);
+    GEG_CORE_ASSERT(
+        res.result == vk::Result::eSuccess, "Failed to create BRDF integration pipeline!");
+    m_brdf_pipeline = res.value;
   };
 };    // namespace geg::vulkan
